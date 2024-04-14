@@ -4,6 +4,5 @@ from demotivator.indent import ImageIndentation
 
 # Исходные генератор демотиваторов через библиотеку:
 # https://github.com/SolovovChann/demotivator/
-async def generateDemotivator(image_bytes, text) -> Image:
-    image = Image.open(image_bytes)
+async def generateDemotivator(image, text) -> Image:
     return demotivate(image, 'font.ttf', text)

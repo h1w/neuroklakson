@@ -9,26 +9,32 @@ async def normalizeStringForDemotivator(text, every=30, max_str_size=60):
         lines.append(text[i:i+every])
     return '\n'.join(lines)
 
-# Умное уменьшение картинки, чтобы телеграм схавал
-async def smartImageResize(image, max_width=1000, max_height=1000):
-    # Получаем текущие размеры изображения
+# Умный размер картинки, чтобы был нормальный размер и телеграм схавал по объёму
+async def smartImageResize(image, min_size=600, max_size=1200):
+    # Получаем ширину и высоту изображения
     width, height = image.size
 
-    # Рассчитываем соотношение сторон изображения
+    # Вычисляем соотношение сторон
     aspect_ratio = width / height
 
-    # Подбираем новые размеры изображения в зависимости от максимальной ширины и высоты
-    if width > max_width or height > max_height:
-        if width > height:
-            new_width = max_width
-            new_height = int(max_width / aspect_ratio)
+    # Подгоняем изображение под минимальный размер
+    if width < min_size or height < min_size:
+        if width < height:
+            new_width = min_size
+            new_height = int(min_size / aspect_ratio)
         else:
-            new_height = max_height
-            new_width = int(max_height * aspect_ratio)
-    else:
-        new_width, new_height = width, height
+            new_height = min_size
+            new_width = int(min_size * aspect_ratio)
+        image = image.resize((new_width, new_height), Image.LANCZOS)
 
-    # Изменяем размер изображения
-    resized_image = image.resize((new_width, new_height))
+    # Подгоняем изображение под максимальный размер
+    if width > max_size or height > max_size:
+        if width > height:
+            new_width = max_size
+            new_height = int(max_size / aspect_ratio)
+        else:
+            new_height = max_size
+            new_width = int(max_size * aspect_ratio)
+        image = image.resize((new_width, new_height), Image.LANCZOS)
     
-    return resized_image
+    return image

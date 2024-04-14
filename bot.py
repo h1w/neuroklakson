@@ -3,7 +3,7 @@ import logging
 import configparser
 import sys
 import json
-from io import BytesIO
+from io import BytesIO, StringIO
 from PIL import Image
 
 from aiogram import Bot, Dispatcher, types
@@ -44,20 +44,19 @@ async def commandDemotivatorHandler(message: types.Message) -> None:
     finally:
         args_string = ' '.join(command_args)
         
-        photo_bytes = BytesIO()
         try:
             photo = message.photo[-1]
-            
-            await bot.download(photo.file_id, photo_bytes)
         except:
-            photo = message.reply_to_message.photo[-1]
-            
-            await bot.download(photo.file_id, photo_bytes)
+            photo = message.reply_to_message.photo[-1]            
         finally:
             dem_text = await normalizeStringForDemotivator(args_string)
-        
-            demotivator_image = await generateDemotivator(photo_bytes, dem_text)
-            demotivator_image = await smartImageResize(demotivator_image)
+            
+            photo_bytes = BytesIO()
+            await bot.download(photo.file_id, photo_bytes)
+            
+            image = Image.open(photo_bytes)
+            image = await smartImageResize(image)
+            demotivator_image = await generateDemotivator(image, dem_text)
             
             img_byte_array = BytesIO()
             demotivator_image.save(img_byte_array, format="PNG")
@@ -67,8 +66,15 @@ async def commandDemotivatorHandler(message: types.Message) -> None:
 
 @dp.message()
 async def catchMessages(message: types.Message) -> None:
-    # await message.answer(message.text)
-    pass
+    # Обработчик любых сообщений
+    # Классификация по группам/личным чатам/каналам
+    # Обработка простых команд
+    try:
+        pass
+    except:
+        pass
+    finally:
+        pass
 
 async def main() -> None:
     await dp.start_polling(bot)
