@@ -37,7 +37,7 @@ async def commandHelpHandler(message: types.Message) -> None:
 # Так и ответив на картинку написать команду с текстом
 # И получить в результате демотиватор
 @dp.message(Command('createdemotivator', 'crdem', 'cd'))
-async def commandDemotivatorHandler(message: types.Message) -> None:
+async def commandCreateDemotivatorManuallyHandler(message: types.Message) -> None:
     try:
         command_args = message.text.split(' ')[1:]
     except:
