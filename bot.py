@@ -11,6 +11,7 @@ from aiogram.filters import CommandStart, Command
 
 from demotivate import generateDemotivator
 from utils import normalizeStringForDemotivator, smartImageResize
+import dbconnector as dbc
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)\
 
@@ -64,19 +65,36 @@ async def commandDemotivatorHandler(message: types.Message) -> None:
             
             await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
 
+# Обработчик любых сообщений
+# Обработка простых команд
 @dp.message()
 async def catchMessages(message: types.Message) -> None:
-    # Обработчик любых сообщений
-    # Классификация по группам/личным чатам/каналам
-    # Обработка простых команд
     try:
-        pass
+        chat_id = None
+        msg = None
+        photo_file_id = None
+        
+        chat_id = message.chat.id
+        
+        if message.text != None:
+            msg = message.text
+        elif message.caption != None:
+            msg = message.caption
+        
+        if message.photo != None:
+            photo_file_id = message.photo[-1].file_id
+        
+        if chat_id != None and msg != None:
+            await dbc.insertMessage(chat_id, msg)
+        if chat_id != None and photo_file_id != None:
+            await dbc.insertPhoto(chat_id, photo_file_id)
     except:
         pass
     finally:
         pass
 
 async def main() -> None:
+    await dbc.createTable()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
