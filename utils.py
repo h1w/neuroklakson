@@ -1,4 +1,5 @@
 from PIL import Image
+import re
 
 # Нормализовать текст для демотиватора
 # Чтобы она не вылезала за границы картинки
@@ -38,3 +39,17 @@ async def smartImageResize(image, min_size=600, max_size=1200):
         image = image.resize((new_width, new_height), Image.LANCZOS)
     
     return image
+
+# Проверить, есть ли в строке ссылка
+async def isTextContainsLink(text):
+    # Регулярное выражение для поиска ссылок
+    pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    
+    return re.search(pattern, text) is not None
+
+# Удалить ссылку из строки
+async def removeLinkFromText(text):
+    # Регулярное выражение для поиска ссылок
+    pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+
+    return re.sub(pattern, '', text)

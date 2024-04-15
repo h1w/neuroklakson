@@ -10,7 +10,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, Command
 
 from demotivate import generateDemotivator
-from utils import normalizeStringForDemotivator, smartImageResize
+from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText
 import dbconnector as dbc
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)\
@@ -65,6 +65,34 @@ async def commandCreateDemotivatorManuallyHandler(message: types.Message) -> Non
             
             await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
 
+@dp.message(Command('demotivatorgeneration', 'demgen', 'dg'))
+async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
+    try:
+        # Взять рандомную картинку
+        # Сделать рандомную фразу
+        # Сделать демотиватор
+        # Отправить в чат
+        chat_id = message.chat.id
+        photo_file_id = await dbc.getRandomPhoto(chat_id)
+        msg = await dbc.getRandomMessage(chat_id)
+        
+        photo_bytes = BytesIO()
+        await bot.download(photo_file_id, photo_bytes)
+        
+        image = Image.open(photo_bytes)
+        image = await smartImageResize(image)
+        demotivator_image = await generateDemotivator(image, msg)
+        
+        img_byte_array = BytesIO()
+        demotivator_image.save(img_byte_array, format="PNG")
+        img_byte_array.seek(0)
+        
+        await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
+    except:
+        pass
+    finally:
+        pass
+
 # Обработчик любых сообщений
 # Обработка простых команд
 @dp.message()
@@ -85,6 +113,7 @@ async def catchMessages(message: types.Message) -> None:
             photo_file_id = message.photo[-1].file_id
         
         if chat_id != None and msg != None:
+            msg = await removeLinkFromText(msg)
             await dbc.insertMessage(chat_id, msg)
         if chat_id != None and photo_file_id != None:
             await dbc.insertPhoto(chat_id, photo_file_id)
