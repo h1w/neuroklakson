@@ -3,6 +3,7 @@ import logging
 import configparser
 import sys
 import json
+import random
 from io import BytesIO, StringIO
 from PIL import Image
 
@@ -10,12 +11,12 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, Command
 
 from demotivate import generateDemotivator
-from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink, doWithProbability
+from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink, doWithProbability, splitStringIntoLines
 import dbconnector as dbc
 from markchain import makeShortSentence
 from parse2ch import parseTredToPostTextList
 
-logging.basicConfig(level=logging.INFO, stream=sys.stdout)\
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
 config = configparser.ConfigParser()
 config.read('credentials.cfg')
@@ -39,6 +40,7 @@ async def commandHelpHandler(message: types.Message) -> None:
     \t/demotivatorgeneration, /demgen, /d - демотиватор на основе картинок и сообщений чата
     \t/generatemessage, /genmsg, /gm - сгенерировать бредосообщение
     \t/readtread2ch, /rt2ch - Спарсить сообщения с треда на дваче в базу чата
+    \t/generatebugurt, /genbug, /b - Сгенерировать бугурт
     """
     await message.answer(help_msg)
 
@@ -89,7 +91,7 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
         msgs = await dbc.getAllMessages(chat_id)
         msgs_text = '\n'.join(msgs)
         
-        answer_msg = await makeShortSentence(msgs_text, int(config['BOT']['BredoDemotivatorMaxWordSize']))
+        answer_msg = await makeShortSentence(msgs_text, random.randint(int(config['BOT']['BredoDemotivatorMinWordSize']), int(config['BOT']['BredoDemotivatorMaxWordSize'])))
         
         if answer_msg == None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
@@ -124,7 +126,7 @@ async def commandGenerateMessageHandler(message: types.Message) -> None:
         msgs = await dbc.getAllMessages(chat_id)
         msgs_text = '\n'.join(msgs)
         
-        answer_msg = await makeShortSentence(msgs_text, int(config['BOT']['BredoMessageMaxWordSize']))
+        answer_msg = await makeShortSentence(msgs_text, random.randint(int(config['BOT']['BredoMessageMinWordSize']), int(config['BOT']['BredoMessageMaxWordSize'])))
         
         if answer_msg == None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
@@ -164,6 +166,32 @@ async def commandReadTredFrom2chHandler(message: types.Message) -> None:
         else:
             await message.answer("пошел нахуй\nэто не ссылка на тред двача")
 
+# Генератор бугуртов
+# Сгенерировать бугурт
+@dp.message(Command('generatebugurt', 'genbug', 'b'))
+async def commandGenerateBugurtHandler(message: types.Message) -> None:
+    try:
+        chat_id = message.chat.id
+        msgs = await dbc.getAllMessages(chat_id)
+        msgs_text = '\n'.join(msgs)
+        
+        answer_msg = await makeShortSentence(msgs_text, random.randint(int(config['BOT']['BredoBugurtMessageMinWordSize']), int(config['BOT']['BredoBugurtMessageMaxWordSize'])))
+        if answer_msg == None:
+            answer_msg = "Я ещё очень тупой, нужно немного подождать"
+            await message.answer(f'{answer_msg}')
+        else:
+            bugurt_text_lines = await splitStringIntoLines(answer_msg, int(config['BOT']['BredoBugurtMessageMinWordsPerLine']), int(config['BOT']['BredoBugurtMessageMaxWordsPerLine']), int(config['BOT']['BredoBugurtMessageMinLines']), int(config['BOT']['BredoBugurtMessageMaxLines']))
+            bugurt_text = '\n@\n'.join(bugurt_text_lines)
+            await message.answer(f'{bugurt_text}')
+        
+    except Exception as e:
+        print(e)
+        answer_msg = "Еще слишком рано\nПодожди немного"
+        await message.answer(f'{answer_msg}')
+        pass
+    finally:
+        pass
+
 # Обработчик любых сообщений
 # Обработка простых команд
 @dp.message()
@@ -176,12 +204,12 @@ async def catchMessages(message: types.Message) -> None:
         chat_id = message.chat.id
         
         # С какой-то вероятностью может ответить бредогенератором на сообщение
-        # Установка на генерацию сообщения 20%
-        if doWithProbability(int(config['BOT']['BredoGenerationProbability'])):
+        # Установка на генерацию сообщения в конфиге
+        if await doWithProbability(random.randint(int(config['BOT']['BredoGenerationProbabilityMin']), int(config['BOT']['BredoGenerationProbabilityMax']))):
             msgs = await dbc.getAllMessages(chat_id)
             msgs_text = '\n'.join(msgs)
             
-            answer_msg = await makeShortSentence(msgs_text, int(config['BOT']['BredoMessageMaxWordSize']))
+            answer_msg = await makeShortSentence(msgs_text, random.randint(int(config['BOT']['BredoMessageMinWordSize']), int(config['BOT']['BredoMessageMaxWordSize'])))
             
             if answer_msg != None:
                 await message.answer(f'{answer_msg}')

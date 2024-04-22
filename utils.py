@@ -67,10 +67,38 @@ async def isTextIsLink(string):
     
     return re.match(url_pattern, string) is not None
 
-def doWithProbability(probability_percent):
+async def doWithProbability(probability_percent):
     random_number = random.randint(0, 99)
     
     if random_number <= probability_percent:
         return True
     else:
         return False
+
+async def splitStringIntoLines(text, min_words_per_line=2, max_words_per_line=15, min_lines=2, max_lines=10):
+    random_lines = []
+    num_lines = random.randint(min_lines, max_lines)
+
+    words = text.split()
+
+    start_idx = 0
+    while start_idx < len(words):
+        end_idx = min(len(words), start_idx + random.randint(min_words_per_line, max_words_per_line))
+        line = ' '.join(words[start_idx:end_idx])
+        random_lines.append(line)
+        start_idx = end_idx
+        
+    if len(random_lines) == 1:
+        words = random_lines[0].split()
+    
+        split_index = random.randint(1, len(words) - 1)
+        
+        first_part = ' '.join(words[:split_index])
+        second_part = ' '.join(words[split_index:])
+        
+        random_lines = [
+            first_part,
+            second_part
+        ]
+    
+    return random_lines
