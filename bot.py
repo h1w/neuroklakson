@@ -77,21 +77,31 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
         # Сделать демотиватор
         # Отправить в чат
         chat_id = message.chat.id
-        photo_file_id = await dbc.getRandomPhoto(chat_id)
-        msg = await dbc.getRandomMessage(chat_id)
         
-        photo_bytes = BytesIO()
-        await bot.download(photo_file_id, photo_bytes)
+        msgs = await dbc.getAllMessages(chat_id)
+        msgs_text = '\n'.join(msgs)
         
-        image = Image.open(photo_bytes)
-        image = await smartImageResize(image)
-        demotivator_image = await generateDemotivator(image, msg)
+        answer_msg = await makeShortSentence(msgs_text, 150)
         
-        img_byte_array = BytesIO()
-        demotivator_image.save(img_byte_array, format="PNG")
-        img_byte_array.seek(0)
-        
-        await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
+        if answer_msg == None:
+            answer_msg = "Я ещё очень тупой, нужно немного подождать"
+            await message.answer(f'{answer_msg}')
+        else:
+            photo_file_id = await dbc.getRandomPhoto(chat_id)
+            msg = answer_msg
+            
+            photo_bytes = BytesIO()
+            await bot.download(photo_file_id, photo_bytes)
+            
+            image = Image.open(photo_bytes)
+            image = await smartImageResize(image)
+            demotivator_image = await generateDemotivator(image, msg)
+            
+            img_byte_array = BytesIO()
+            demotivator_image.save(img_byte_array, format="PNG")
+            img_byte_array.seek(0)
+            
+            await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
     except:
         pass
     finally:
