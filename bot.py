@@ -31,7 +31,15 @@ async def commandStartHandler(message: types.Message) -> None:
 # Помощь в командах бота
 @dp.message(Command('help', 'h'))
 async def commandHelpHandler(message: types.Message) -> None:
-    help_msg = "Пошел нахуй, команд нет"
+    # help_msg = "Пошел нахуй, команд нет"
+    help_msg = """Команды бота:
+    \t/start - пошел нахуй
+    \t/help, /h - помощь по командам
+    \t/createdemotivator, /crdem, /cd - создание демотиватора вручную: отослать картинку с текстом или ответить на картинку с текстом демотиватора
+    \t/demotivatorgeneration, /demgen, /d - демотиватор на основе картинок и сообщений чата
+    \t/generatemessage, /genmsg, /gm - сгенерировать бредосообщение
+    \t/readtread2ch, /rt2ch - Спарсить сообщения с треда на дваче в базу чата
+    """
     await message.answer(help_msg)
 
 # Генератор демотиваторов вручную через команду
@@ -81,7 +89,7 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
         msgs = await dbc.getAllMessages(chat_id)
         msgs_text = '\n'.join(msgs)
         
-        answer_msg = await makeShortSentence(msgs_text, 16)
+        answer_msg = await makeShortSentence(msgs_text, int(config['BOT']['BredoDemotivatorMaxWordSize']))
         
         if answer_msg == None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
@@ -116,7 +124,7 @@ async def commandGenerateMessageHandler(message: types.Message) -> None:
         msgs = await dbc.getAllMessages(chat_id)
         msgs_text = '\n'.join(msgs)
         
-        answer_msg = await makeShortSentence(msgs_text, 50)
+        answer_msg = await makeShortSentence(msgs_text, int(config['BOT']['BredoMessageMaxWordSize']))
         
         if answer_msg == None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
@@ -169,11 +177,11 @@ async def catchMessages(message: types.Message) -> None:
         
         # С какой-то вероятностью может ответить бредогенератором на сообщение
         # Установка на генерацию сообщения 20%
-        if doWithProbability(20):
+        if doWithProbability(int(config['BOT']['BredoGenerationProbability'])):
             msgs = await dbc.getAllMessages(chat_id)
             msgs_text = '\n'.join(msgs)
             
-            answer_msg = await makeShortSentence(msgs_text, 50)
+            answer_msg = await makeShortSentence(msgs_text, int(config['BOT']['BredoMessageMaxWordSize']))
             
             if answer_msg != None:
                 await message.answer(f'{answer_msg}')
@@ -191,7 +199,8 @@ async def catchMessages(message: types.Message) -> None:
             await dbc.insertMessage(chat_id, msg)
         if chat_id != None and photo_file_id != None:
             await dbc.insertPhoto(chat_id, photo_file_id)
-    except:
+    except Exception as e:
+        print(e)
         pass
     finally:
         pass
