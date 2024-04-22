@@ -39,7 +39,6 @@ async def commandHelpHandler(message: types.Message) -> None:
     \t/createdemotivator, /crdem, /cd - создание демотиватора вручную: отослать картинку с текстом или ответить на картинку с текстом демотиватора
     \t/demotivatorgeneration, /demgen, /d - демотиватор на основе картинок и сообщений чата
     \t/generatemessage, /genmsg, /gm - сгенерировать бредосообщение
-    \t/readtread2ch, /rt2ch - Спарсить сообщения с треда на дваче в базу чата
     \t/generatebugurt, /genbug, /b - Сгенерировать бугурт
     """
     await message.answer(help_msg)
@@ -139,32 +138,6 @@ async def commandGenerateMessageHandler(message: types.Message) -> None:
         pass
     finally:
         pass
-
-
-# Прочитать тред на дваче и добавить это в базу
-# Спарсить все сообщения треда и добавить в базу сообщений текст со всех постов треда
-@dp.message(Command('readtread2ch', 'rt2ch'))
-async def commandReadTredFrom2chHandler(message: types.Message) -> None:
-    try:
-        chat_id = message.chat.id
-        command_args = message.text.split(' ')[1:]
-    except:
-        pass
-    finally:
-        args_string = ' '.join(command_args)
-        if await isTextIsLink(args_string):        
-            if '/res/' not in args_string:
-                await message.answer("пошел нахуй\nнеправильно пишешь ссылку блять")
-            else:
-                texts_list = await parseTredToPostTextList(args_string)
-                if texts_list is not None:
-                    await dbc.insertMessages(chat_id, texts_list)
-                
-                    await message.answer(f"Успешно добавлено {len(texts_list)} постов")
-                else:
-                    await message.answer("пошел нахуй\nошибку бьёт падаль")
-        else:
-            await message.answer("пошел нахуй\nэто не ссылка на тред двача")
 
 # Генератор бугуртов
 # Сгенерировать бугурт
