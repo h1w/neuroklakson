@@ -10,8 +10,10 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, Command
 
 from demotivate import generateDemotivator
-from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText
+from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink
 import dbconnector as dbc
+from markchain import makeShortSentence
+from parse2ch import parseTredToPostTextList
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)\
 
@@ -65,7 +67,9 @@ async def commandCreateDemotivatorManuallyHandler(message: types.Message) -> Non
             
             await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
 
-@dp.message(Command('demotivatorgeneration', 'demgen', 'dg'))
+# Автоматическая генерация Демотиваторов
+# Рандомная картинка из беседы + рандомная сгенерированная фраза из беседы
+@dp.message(Command('demotivatorgeneration', 'demgen', 'd'))
 async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
     try:
         # Взять рандомную картинку
@@ -92,6 +96,53 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
         pass
     finally:
         pass
+
+@dp.message(Command('generatemessage', 'genmsg', 'gm'))
+async def commandGenerateMessageHandler(message: types.Message) -> None:
+    try:
+        chat_id = message.chat.id
+        msgs = await dbc.getAllMessages(chat_id)
+        msgs_text = '\n'.join(msgs)
+        
+        answer_msg = await makeShortSentence(msgs_text)
+        
+        if answer_msg == None:
+            answer_msg = "Я ещё очень тупой, нужно немного подождать"
+            await message.answer(f'{answer_msg}')
+        else:
+            await message.answer(f'{answer_msg}')
+    except Exception as e:
+        answer_msg = "Еще слишком рано\nПодожди немного"
+        await message.answer(f'{answer_msg}')
+        pass
+    finally:
+        pass
+
+
+# Прочитать тред на дваче и добавить это в базу
+# Спарсить все сообщения треда и добавить в базу сообщений текст со всех постов треда
+@dp.message(Command('readtread2ch', 'rt2ch'))
+async def commandReadTredFrom2chHandler(message: types.Message) -> None:
+    try:
+        chat_id = message.chat.id
+        command_args = message.text.split(' ')[1:]
+    except:
+        pass
+    finally:
+        args_string = ' '.join(command_args)
+        if await isTextIsLink(args_string):        
+            if '/res/' not in args_string:
+                await message.answer("пошел нахуй\nнеправильно пишешь ссылку блять")
+            else:
+                texts_list = await parseTredToPostTextList(args_string)
+                if texts_list is not None:
+                    await dbc.insertMessages(chat_id, texts_list)
+                
+                    await message.answer(f"Успешно добавлено {len(texts_list)} постов")
+                else:
+                    await message.answer("пошел нахуй\nошибку бьёт падаль")
+        else:
+            await message.answer("пошел нахуй\nэто не ссылка на тред двача")
 
 # Обработчик любых сообщений
 # Обработка простых команд

@@ -39,6 +39,16 @@ async def insertMessage(chat_id, message):
         await db.commit()
         await db.close()
 
+async def insertMessages(chat_id, messages_list):
+    async with aiosqlite.connect(dbfilename) as db:
+        for message in messages_list:
+            await db.execute(
+                "INSERT INTO messages (chat_id, message) VALUES (?, ?)",
+                (chat_id, message)
+            )
+        await db.commit()
+        await db.close()
+
 async def insertPhoto(chat_id, file_id):
     async with aiosqlite.connect(dbfilename) as db:
         await db.execute(
@@ -71,3 +81,15 @@ async def getRandomMessage(chat_id):
         await db.close()
     
     return random_message[0]
+
+async def getAllMessages(chat_id):
+    async with aiosqlite.connect(dbfilename) as db:
+        async with db.execute(
+            "SELECT message FROM messages WHERE chat_id = ?",
+            (chat_id, )
+        ) as cursor:
+            all_messages = await cursor.fetchall()
+        
+        await db.close()
+    
+    return list(map(lambda x: ''.join(x), all_messages))

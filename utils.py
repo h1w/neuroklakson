@@ -53,3 +53,15 @@ async def removeLinkFromText(text):
     pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 
     return re.sub(pattern, '', text)
+
+# Проверить, что текст это ссылка
+async def isTextIsLink(string):
+    url_pattern = re.compile(
+        r'^(?:http|ftp)s?://'  # протокол
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # доменное имя
+        r'localhost|'  # localhost
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IP адрес
+        r'(?::\d+)?'  # порт
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    
+    return re.match(url_pattern, string) is not None
