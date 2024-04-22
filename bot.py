@@ -10,7 +10,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, Command
 
 from demotivate import generateDemotivator
-from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink
+from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink, doWithProbability
 import dbconnector as dbc
 from markchain import makeShortSentence
 from parse2ch import parseTredToPostTextList
@@ -81,7 +81,7 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
         msgs = await dbc.getAllMessages(chat_id)
         msgs_text = '\n'.join(msgs)
         
-        answer_msg = await makeShortSentence(msgs_text, 150)
+        answer_msg = await makeShortSentence(msgs_text, 16)
         
         if answer_msg == None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
@@ -107,6 +107,8 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
     finally:
         pass
 
+# генерация сообщений
+# Команда для генерации сообщений
 @dp.message(Command('generatemessage', 'genmsg', 'gm'))
 async def commandGenerateMessageHandler(message: types.Message) -> None:
     try:
@@ -114,7 +116,7 @@ async def commandGenerateMessageHandler(message: types.Message) -> None:
         msgs = await dbc.getAllMessages(chat_id)
         msgs_text = '\n'.join(msgs)
         
-        answer_msg = await makeShortSentence(msgs_text)
+        answer_msg = await makeShortSentence(msgs_text, 50)
         
         if answer_msg == None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
@@ -164,6 +166,17 @@ async def catchMessages(message: types.Message) -> None:
         photo_file_id = None
         
         chat_id = message.chat.id
+        
+        # С какой-то вероятностью может ответить бредогенератором на сообщение
+        # Установка на генерацию сообщения 20%
+        if doWithProbability(20):
+            msgs = await dbc.getAllMessages(chat_id)
+            msgs_text = '\n'.join(msgs)
+            
+            answer_msg = await makeShortSentence(msgs_text, 50)
+            
+            if answer_msg != None:
+                await message.answer(f'{answer_msg}')
         
         if message.text != None:
             msg = message.text

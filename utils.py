@@ -1,5 +1,6 @@
 from PIL import Image
 import re
+import random
 
 # Нормализовать текст для демотиватора
 # Чтобы она не вылезала за границы картинки
@@ -65,3 +66,11 @@ async def isTextIsLink(string):
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
     
     return re.match(url_pattern, string) is not None
+
+def doWithProbability(probability_percent):
+    random_number = random.randint(0, 99)
+    
+    if random_number <= probability_percent:
+        return True
+    else:
+        return False
