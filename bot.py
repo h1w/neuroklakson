@@ -6,7 +6,6 @@ import json
 import random
 from io import BytesIO, StringIO
 from PIL import Image
-from gtts import gTTS
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, Command, Filter
@@ -15,6 +14,7 @@ from demotivate import generateDemotivator, generateQuote
 from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink, doWithProbability, splitStringIntoLines
 import dbconnector as dbc
 from markchain import makeShortSentence
+from voiceover import textVoiceover
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
@@ -272,14 +272,7 @@ async def commandMessageVoiceoverHandler(message: types.Message) -> None:
                     msg = None
         
         if msg != None:
-            voice_msg = await normalizeStringForDemotivator(msg)
-            
-            tts = gTTS(voice_msg, lang='ru', slow=False)
-            fp = BytesIO()
-            tts.write_to_fp(fp)
-            audio_bytes = fp.getvalue()
-            
-            await message.answer_voice(types.BufferedInputFile(audio_bytes, "aboba"))
+            await message.answer_voice(types.BufferedInputFile(await textVoiceover(msg), "aboba"))
         else:
             await message.answer(f"Что мне озвучивать ебалай? Пошел нахуй конченый пидарас")
             return
@@ -318,14 +311,7 @@ async def catchMessages(message: types.Message) -> None:
         
         # С какой-то вероятностью может озвучить сообщение пользователя
         if msg != None and await doWithProbability(int(config['BOT']['BredoMessageVoiceoverProbability'])):
-            voice_msg = await normalizeStringForDemotivator(msg)
-            
-            tts = gTTS(voice_msg, lang='ru', slow=False)
-            fp = BytesIO()
-            tts.write_to_fp(fp)
-            audio_bytes = fp.getvalue()
-            
-            await message.answer_voice(types.BufferedInputFile(audio_bytes, "aboba"))
+            await message.answer_voice(types.BufferedInputFile(await textVoiceover(msg), "aboba"))
         
         if message.photo != None:
             photo_file_id = message.photo[-1].file_id
