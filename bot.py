@@ -10,7 +10,7 @@ from PIL import Image
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, Command
 
-from demotivate import generateDemotivator
+from demotivate import generateDemotivator, generateQuote
 from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink, doWithProbability, splitStringIntoLines
 import dbconnector as dbc
 from markchain import makeShortSentence
@@ -36,10 +36,11 @@ async def commandHelpHandler(message: types.Message) -> None:
     help_msg = """Команды бота:
     \t/start - пошел нахуй
     \t/help, /h - помощь по командам
-    \t/createdemotivator, /crdem, /cd - создание демотиватора вручную: отослать картинку с текстом или ответить на картинку с текстом демотиватора
+    \t/createdemotivator, /crdem, /cd <first_line> | <second_line or NONE> - создание демотиватора вручную: отослать картинку с текстом или ответить на картинку с текстом демотиватора
     \t/demotivatorgeneration, /demgen, /d - демотиватор на основе картинок и сообщений чата
     \t/generatemessage, /genmsg, /gm - сгенерировать бредосообщение
     \t/generatebugurt, /genbug, /b - Сгенерировать бугурт
+    \t/createquote, /cq, /q - Создать цитату, необходимо ответить на сообщение человека, в котором содержится текст
     """
     await message.answer(help_msg)
 
@@ -55,20 +56,23 @@ async def commandCreateDemotivatorManuallyHandler(message: types.Message) -> Non
         command_args = message.caption.split(' ')[1:]
     finally:
         args_string = ' '.join(command_args)
+        first_line, second_line = args_string, ''
+        args_string = args_string.split('|')
+        if len(args_string) > 1:
+            first_line, second_line = args_string[0], args_string[1]
         
         try:
             photo = message.photo[-1]
         except:
-            photo = message.reply_to_message.photo[-1]            
+            photo = message.reply_to_message.photo[-1]
         finally:
-            dem_text = await normalizeStringForDemotivator(args_string)
+            first_line = await normalizeStringForDemotivator(first_line)
+            second_line = await normalizeStringForDemotivator(second_line)
             
             photo_bytes = BytesIO()
             await bot.download(photo.file_id, photo_bytes)
             
-            image = Image.open(photo_bytes)
-            image = await smartImageResize(image)
-            demotivator_image = await generateDemotivator(image, dem_text)
+            demotivator_image = await generateDemotivator(photo_bytes, first_line, second_line)
             
             img_byte_array = BytesIO()
             demotivator_image.save(img_byte_array, format="PNG")
@@ -90,29 +94,68 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
         msgs = await dbc.getAllMessages(chat_id)
         msgs_text = '\n'.join(msgs)
         
-        answer_msg = await makeShortSentence(msgs_text, random.randint(int(config['BOT']['BredoDemotivatorMinWordSize']), int(config['BOT']['BredoDemotivatorMaxWordSize'])))
-        
-        if answer_msg == None:
+        answer_first_line = await makeShortSentence(msgs_text, random.randint(int(config['BOT']['BredoDemotivatorMinWordSize']), int(config['BOT']['BredoDemotivatorMaxWordSize'])))
+        answer_second_line = await makeShortSentence(msgs_text, random.randint(int(config['BOT']['BredoDemotivatorSecondLineMinWordSize']), int(config['BOT']['BredoDemotivatorSecondLineMaxWordSize'])))
+        if answer_first_line == None and answer_second_line == None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
             await message.answer(f'{answer_msg}')
         else:
             photo_file_id = await dbc.getRandomPhoto(chat_id)
-            msg = answer_msg
             
             photo_bytes = BytesIO()
             await bot.download(photo_file_id, photo_bytes)
             
-            image = Image.open(photo_bytes)
-            image = await smartImageResize(image)
-            demotivator_image = await generateDemotivator(image, msg)
+            demotivator_image = await generateDemotivator(photo_bytes, answer_first_line, answer_second_line)
             
             img_byte_array = BytesIO()
             demotivator_image.save(img_byte_array, format="PNG")
             img_byte_array.seek(0)
             
             await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
-    except:
+    except Exception as e:
+        logging.exception(e)
         pass
+    finally:
+        pass
+
+# Автоматическая генерация Демотиваторов
+# Рандомная картинка из беседы + рандомная сгенерированная фраза из беседы
+@dp.message(Command('createquote', 'cq', 'q'))
+async def commandCreateQuoteHandler(message: types.Message) -> None:
+    try:
+        chat_id = message.chat.id
+                
+        if message.reply_to_message != None:
+            # author_name = f"{message.reply_to_message.from_user.first_name} {message.reply_to_message.from_user.last_name} | {message.reply_to_message.from_user.username}"
+            author_name = message.reply_to_message.from_user.username
+            author_id = message.reply_to_message.from_user.id
+            author_profile_pictures_obj = await bot.get_user_profile_photos(author_id)
+            
+            author_profile_pic_bytes = BytesIO()
+            await bot.download(author_profile_pictures_obj.photos[0][-1].file_id, author_profile_pic_bytes)
+            
+            msg_text = ''
+            if message.reply_to_message.text != None:
+                msg_text = message.reply_to_message.text
+            elif message.reply_to_message.caption != None:
+                msg_text = message.reply_to_message.caption
+            else:
+                await message.answer(f"Придурок, на что мне делать цитату? Образумься")
+                return
+
+            quote_image = await generateQuote(author_profile_pic_bytes, author_name, await normalizeStringForDemotivator(msg_text), str(config['BOT']['BredoQuoteHeadlineText']), config['BOT']['BredoQuoteHeadlineTextFont'], config['BOT']['BredoQuoteAuthorNameTextFont'], config['BOT']['BredoQuoteQuoteTextFont'])
+            
+            img_byte_array = BytesIO()
+            quote_image.save(img_byte_array, format="PNG")
+            img_byte_array.seek(0)
+
+            await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
+        else:
+            await message.answer(f"Придурок, на что мне делать цитату? Образумься")
+            return
+
+    except Exception as e:
+        logging.exception(e)
     finally:
         pass
 
@@ -133,6 +176,7 @@ async def commandGenerateMessageHandler(message: types.Message) -> None:
         else:
             await message.answer(f'{answer_msg}')
     except Exception as e:
+        logging.exception(e)
         answer_msg = "Еще слишком рано\nПодожди немного"
         await message.answer(f'{answer_msg}')
         pass
@@ -153,12 +197,13 @@ async def commandGenerateBugurtHandler(message: types.Message) -> None:
             answer_msg = "Я ещё очень тупой, нужно немного подождать"
             await message.answer(f'{answer_msg}')
         else:
+            answer_msg = await normalizeStringForDemotivator(answer_msg)
             bugurt_text_lines = await splitStringIntoLines(answer_msg, int(config['BOT']['BredoBugurtMessageMinWordsPerLine']), int(config['BOT']['BredoBugurtMessageMaxWordsPerLine']), int(config['BOT']['BredoBugurtMessageMinLines']), int(config['BOT']['BredoBugurtMessageMaxLines']))
             bugurt_text = '\n@\n'.join(bugurt_text_lines)
             await message.answer(f'{bugurt_text}')
         
     except Exception as e:
-        print(e)
+        logging.exception(e)
         answer_msg = "Еще слишком рано\nПодожди немного"
         await message.answer(f'{answer_msg}')
         pass

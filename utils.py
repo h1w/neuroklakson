@@ -3,13 +3,17 @@ import re
 import random
 
 # Нормализовать текст для демотиватора
-# Чтобы она не вылезала за границы картинки
-async def normalizeStringForDemotivator(text, every=30, max_str_size=60):
-    text = text[:max_str_size]
-    lines = []
-    for i in range(0, len(text), every):
-        lines.append(text[i:i+every])
-    return '\n'.join(lines)
+# Ограничить размеры слова
+async def normalizeStringForDemotivator(text, letters_max_size=30):
+    words = text.split()
+    trimmed_words = []
+    
+    for word in words:
+        if len(word) > letters_max_size:
+            word = word[:letters_max_size]
+        trimmed_words.append(word)
+    
+    return ' '.join(trimmed_words)
 
 # Умный размер картинки, чтобы был нормальный размер и телеграм схавал по объёму
 async def smartImageResize(image, min_size=600, max_size=1200):
