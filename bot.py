@@ -6,9 +6,10 @@ import json
 import random
 from io import BytesIO, StringIO
 from PIL import Image
+from gtts import gTTS
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart, Command, Filter
 
 from demotivate import generateDemotivator, generateQuote
 from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink, doWithProbability, splitStringIntoLines
@@ -23,15 +24,24 @@ config.read('credentials.cfg')
 bot = Bot(config['BOT']['Token'])
 dp = Dispatcher()
 
+class IsGroupFilter(Filter):
+    def __init__(self) -> None:
+        pass
+    
+    async def __call__(self, message: types.Message) -> bool:
+        if message.chat.type == 'group' or message.chat.type == 'supergroup':
+            return True
+        else:
+            return False
+
 # Приветствие бота
 @dp.message(CommandStart())
 async def commandStartHandler(message: types.Message) -> None:
     await message.answer(f'Пошел нахуй {message.from_user.full_name}!')
 
 # Помощь в командах бота
-@dp.message(Command('help', 'h'))
+@dp.message(IsGroupFilter(), Command('help', 'h'))
 async def commandHelpHandler(message: types.Message) -> None:
-    # help_msg = "Пошел нахуй, команд нет"
     help_msg = """Команды бота:
 /start - пошел нахуй
 /help, /h - помощь по командам
@@ -41,6 +51,7 @@ async def commandHelpHandler(message: types.Message) -> None:
 /generatebugurt, /genbug, /b - Сгенерировать бугурт
 /createquote, /cq, /q - Создать цитату, необходимо ответить на сообщение человека, в котором содержится текст
 /stats, /s - Статистика чата
+/voiceover, /v - Озвучка сообщения
 """
     await message.answer(help_msg)
 
@@ -48,41 +59,57 @@ async def commandHelpHandler(message: types.Message) -> None:
 # Можно как отправить команду с текстом и картинкой,
 # Так и ответив на картинку написать команду с текстом
 # И получить в результате демотиватор
-@dp.message(Command('createdemotivator', 'crdem', 'cd'))
+@dp.message(IsGroupFilter(), Command('createdemotivator', 'crdem', 'cd'))
 async def commandCreateDemotivatorManuallyHandler(message: types.Message) -> None:
     try:
-        command_args = message.text.split(' ')[1:]
-    except:
-        command_args = message.caption.split(' ')[1:]
-    finally:
+        if message.text != None:
+            command_args = message.text.split(' ')[1:]
+        elif message.caption != None:
+            command_args = message.caption.split(' ')[1:]
+        else:
+            await message.answer(f"Еблан, мне не из чего делать демотиватор, пошел нахуй!")
+            return
+        
         args_string = ' '.join(command_args)
         first_line, second_line = args_string, ''
         args_string = args_string.split('|')
         if len(args_string) > 1:
             first_line, second_line = args_string[0], args_string[1]
         
-        try:
-            photo = message.photo[-1]
-        except:
-            photo = message.reply_to_message.photo[-1]
-        finally:
-            first_line = await normalizeStringForDemotivator(first_line)
-            second_line = await normalizeStringForDemotivator(second_line)
-            
-            photo_bytes = BytesIO()
-            await bot.download(photo.file_id, photo_bytes)
-            
-            demotivator_image = await generateDemotivator(photo_bytes, first_line, second_line)
-            
-            img_byte_array = BytesIO()
-            demotivator_image.save(img_byte_array, format="PNG")
-            img_byte_array.seek(0)
-            
-            await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
+        if message.reply_to_message != None:
+            if message.reply_to_message.photo != None:
+                photo = message.reply_to_message.photo[-1]
+            else:
+                await message.answer(f"Еблан, мне не из чего делать демотиватор, пошел нахуй!")
+                return
+        else:
+            if message.photo != None:
+                photo = message.photo[-1]
+            else:
+                await message.answer(f"Еблан, мне не из чего делать демотиватор, пошел нахуй!")
+                return
+        
+        first_line = await normalizeStringForDemotivator(first_line)
+        second_line = await normalizeStringForDemotivator(second_line)
+        
+        photo_bytes = BytesIO()
+        await bot.download(photo.file_id, photo_bytes)
+        
+        demotivator_image = await generateDemotivator(photo_bytes, first_line, second_line)
+        
+        img_byte_array = BytesIO()
+        demotivator_image.save(img_byte_array, format="PNG")
+        img_byte_array.seek(0)
+        
+        await message.answer_photo(types.BufferedInputFile(img_byte_array.getvalue(), "aboba.png"))
+    except Exception as e:
+        logging.exception(e)
+    finally:
+        pass
 
 # Автоматическая генерация Демотиваторов
 # Рандомная картинка из беседы + рандомная сгенерированная фраза из беседы
-@dp.message(Command('demotivatorgeneration', 'demgen', 'd'))
+@dp.message(IsGroupFilter(), Command('demotivatorgeneration', 'demgen', 'd'))
 async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
     try:
         # Взять рандомную картинку
@@ -120,7 +147,7 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
 
 # Автоматическая генерация Демотиваторов
 # Рандомная картинка из беседы + рандомная сгенерированная фраза из беседы
-@dp.message(Command('createquote', 'cq', 'q'))
+@dp.message(IsGroupFilter(), Command('createquote', 'cq', 'q'))
 async def commandCreateQuoteHandler(message: types.Message) -> None:
     try:
         chat_id = message.chat.id
@@ -161,7 +188,7 @@ async def commandCreateQuoteHandler(message: types.Message) -> None:
 
 # генерация сообщений
 # Команда для генерации сообщений
-@dp.message(Command('generatemessage', 'genmsg', 'gm'))
+@dp.message(IsGroupFilter(), Command('generatemessage', 'genmsg', 'gm'))
 async def commandGenerateMessageHandler(message: types.Message) -> None:
     try:
         chat_id = message.chat.id
@@ -185,7 +212,7 @@ async def commandGenerateMessageHandler(message: types.Message) -> None:
 
 # Генератор бугуртов
 # Сгенерировать бугурт
-@dp.message(Command('generatebugurt', 'genbug', 'b'))
+@dp.message(IsGroupFilter(), Command('generatebugurt', 'genbug', 'b'))
 async def commandGenerateBugurtHandler(message: types.Message) -> None:
     try:
         chat_id = message.chat.id
@@ -211,7 +238,7 @@ async def commandGenerateBugurtHandler(message: types.Message) -> None:
         pass
 
 # Статистика чата
-@dp.message(Command('stats', 's'))
+@dp.message(IsGroupFilter(), Command('stats', 's'))
 async def commandChatStatsHandler(message: types.Message) -> None:
     try:
         chat_id = message.chat.id
@@ -226,9 +253,44 @@ async def commandChatStatsHandler(message: types.Message) -> None:
     finally:
         pass
 
+# Озвучка сообщений
+@dp.message(IsGroupFilter(), Command('voiceover', 'v'))
+async def commandMessageVoiceoverHandler(message: types.Message) -> None:
+    try:
+        msg = None
+        
+        if message.reply_to_message != None:
+            if message.reply_to_message.text != None:
+                msg = message.reply_to_message.text
+            elif message.reply_to_message.caption != None:
+                msg = message.reply_to_message.caption
+        else:
+            if message.text != None:
+                msg = ' '.join(message.text.split(' ')[1:])
+                
+                if len(msg) == 0:
+                    msg = None
+        
+        if msg != None:
+            voice_msg = await normalizeStringForDemotivator(msg)
+            
+            tts = gTTS(voice_msg, lang='ru', slow=False)
+            fp = BytesIO()
+            tts.write_to_fp(fp)
+            audio_bytes = fp.getvalue()
+            
+            await message.answer_voice(types.BufferedInputFile(audio_bytes, "aboba"))
+        else:
+            await message.answer(f"Что мне озвучивать ебалай? Пошел нахуй конченый пидарас")
+            return
+    except Exception as e:
+        logging.exception(e)
+    finally:
+        pass
+
 # Обработчик любых сообщений
 # Обработка простых команд
-@dp.message()
+@dp.message(IsGroupFilter())
 async def catchMessages(message: types.Message) -> None:
     try:
         chat_id = None
@@ -239,7 +301,7 @@ async def catchMessages(message: types.Message) -> None:
         
         # С какой-то вероятностью может ответить бредогенератором на сообщение
         # Установка на генерацию сообщения в конфиге
-        if await doWithProbability(random.randint(int(config['BOT']['BredoGenerationProbabilityMin']), int(config['BOT']['BredoGenerationProbabilityMax']))):
+        if await doWithProbability(int(config['BOT']['BredoGenerationProbability'])):
             msgs = await dbc.getAllMessages(chat_id)
             msgs_text = '\n'.join(msgs)
             
@@ -248,10 +310,22 @@ async def catchMessages(message: types.Message) -> None:
             if answer_msg != None:
                 await message.answer(f'{answer_msg}')
         
+        msg = None
         if message.text != None:
             msg = message.text
         elif message.caption != None:
             msg = message.caption
+        
+        # С какой-то вероятностью может озвучить сообщение пользователя
+        if msg != None and await doWithProbability(int(config['BOT']['BredoMessageVoiceoverProbability'])):
+            voice_msg = await normalizeStringForDemotivator(msg)
+            
+            tts = gTTS(voice_msg, lang='ru', slow=False)
+            fp = BytesIO()
+            tts.write_to_fp(fp)
+            audio_bytes = fp.getvalue()
+            
+            await message.answer_voice(types.BufferedInputFile(audio_bytes, "aboba"))
         
         if message.photo != None:
             photo_file_id = message.photo[-1].file_id
@@ -262,7 +336,7 @@ async def catchMessages(message: types.Message) -> None:
         if chat_id != None and photo_file_id != None:
             await dbc.insertPhoto(chat_id, photo_file_id)
     except Exception as e:
-        print(e)
+        logging.exception(e)
         pass
     finally:
         pass
