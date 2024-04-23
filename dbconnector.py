@@ -93,3 +93,27 @@ async def getAllMessages(chat_id):
         await db.close()
     
     return list(map(lambda x: ''.join(x), all_messages))
+
+async def getMessagesCount(chat_id):
+    async with aiosqlite.connect(dbfilename) as db:
+        async with db.execute(
+            "SELECT count(*) FROM messages WHERE chat_id = ?",
+            (chat_id, )
+        ) as cursor:
+            messages_count = await cursor.fetchone()
+        
+        await db.close()
+    
+    return messages_count[0]
+
+async def getPhotosCount(chat_id):
+    async with aiosqlite.connect(dbfilename) as db:
+        async with db.execute(
+            "SELECT count(*) FROM photoes WHERE chat_id = ?",
+            (chat_id, )
+        ) as cursor:
+            photos_count = await cursor.fetchone()
+        
+        await db.close()
+    
+    return photos_count[0]

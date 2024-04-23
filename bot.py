@@ -14,7 +14,6 @@ from demotivate import generateDemotivator, generateQuote
 from utils import normalizeStringForDemotivator, smartImageResize, isTextContainsLink, removeLinkFromText, isTextIsLink, doWithProbability, splitStringIntoLines
 import dbconnector as dbc
 from markchain import makeShortSentence
-from parse2ch import parseTredToPostTextList
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
@@ -34,14 +33,15 @@ async def commandStartHandler(message: types.Message) -> None:
 async def commandHelpHandler(message: types.Message) -> None:
     # help_msg = "Пошел нахуй, команд нет"
     help_msg = """Команды бота:
-    \t/start - пошел нахуй
-    \t/help, /h - помощь по командам
-    \t/createdemotivator, /crdem, /cd <first_line> | <second_line or NONE> - создание демотиватора вручную: отослать картинку с текстом или ответить на картинку с текстом демотиватора
-    \t/demotivatorgeneration, /demgen, /d - демотиватор на основе картинок и сообщений чата
-    \t/generatemessage, /genmsg, /gm - сгенерировать бредосообщение
-    \t/generatebugurt, /genbug, /b - Сгенерировать бугурт
-    \t/createquote, /cq, /q - Создать цитату, необходимо ответить на сообщение человека, в котором содержится текст
-    """
+/start - пошел нахуй
+/help, /h - помощь по командам
+/createdemotivator, /crdem, /cd <first_line> | <second_line or NONE> - создание демотиватора вручную: отослать картинку с текстом или ответить на картинку с текстом демотиватора
+/demotivatorgeneration, /demgen, /d - демотиватор на основе картинок и сообщений чата
+/generatemessage, /genmsg, /gm - сгенерировать бредосообщение
+/generatebugurt, /genbug, /b - Сгенерировать бугурт
+/createquote, /cq, /q - Создать цитату, необходимо ответить на сообщение человека, в котором содержится текст
+/stats, /s - Статистика чата
+"""
     await message.answer(help_msg)
 
 # Генератор демотиваторов вручную через команду
@@ -207,6 +207,22 @@ async def commandGenerateBugurtHandler(message: types.Message) -> None:
         answer_msg = "Еще слишком рано\nПодожди немного"
         await message.answer(f'{answer_msg}')
         pass
+    finally:
+        pass
+
+# Статистика чата
+@dp.message(Command('stats', 's'))
+async def commandChatStatsHandler(message: types.Message) -> None:
+    try:
+        chat_id = message.chat.id
+        messages_count = await dbc.getMessagesCount(chat_id)
+        photos_count = await dbc.getPhotosCount(chat_id)
+        
+        ans_msg = f"ID чата: *{chat_id}*\nСохранено: *{messages_count}* сообщений, *{photos_count}* изображений"
+        
+        await message.answer(ans_msg, parse_mode='Markdown')
+    except Exception as e:
+        logging.exception(e)
     finally:
         pass
 
