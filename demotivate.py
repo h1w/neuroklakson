@@ -1,14 +1,14 @@
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import textwrap
+import configparser
 
 from utils import normalizeStringForDemotivator
 
 # Рисуем демотиватор:
-async def generateDemotivator(image, top_text, bottom_text) -> Image:
-    watermark='@нейроклаксон'
+async def generateDemotivator(image, top_text, bottom_text, watermark=None, font='fonts/font.ttf') -> Image:
     font_color='white'
     fill_color='black'
-    font_name='fonts/font.ttf'
+    font_name=font
     top_size=80
     bottom_size=50
     arrange=False

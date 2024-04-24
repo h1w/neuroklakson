@@ -95,7 +95,7 @@ async def commandCreateDemotivatorManuallyHandler(message: types.Message) -> Non
         photo_bytes = BytesIO()
         await bot.download(photo.file_id, photo_bytes)
         
-        demotivator_image = await generateDemotivator(photo_bytes, first_line, second_line)
+        demotivator_image = await generateDemotivator(photo_bytes, first_line, second_line, str(config['BOT']['BredoDemotivatorWatermark']), str(config['BOT']['BredoDemotivatorTextFont']))
         
         img_byte_array = BytesIO()
         demotivator_image.save(img_byte_array, format="PNG")
@@ -132,7 +132,7 @@ async def commandDemotivatorGeneratorHandler(message: types.Message) -> None:
             photo_bytes = BytesIO()
             await bot.download(photo_file_id, photo_bytes)
             
-            demotivator_image = await generateDemotivator(photo_bytes, answer_first_line, answer_second_line)
+            demotivator_image = await generateDemotivator(photo_bytes, answer_first_line, answer_second_line, str(config['BOT']['BredoDemotivatorWatermark']), str(config['BOT']['BredoDemotivatorTextFont']))
             
             img_byte_array = BytesIO()
             demotivator_image.save(img_byte_array, format="PNG")
