@@ -93,7 +93,7 @@ def test_probability_must_be_between_zero_and_one_hundred():
 
 - [ ] **Step 2: Run the tests and verify they fail because config does not exist**
 
-Run: `pytest tests/test_config.py -v`
+Run: `uv run pytest tests/test_config.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'config'`.
 
@@ -298,11 +298,11 @@ def load_settings() -> Settings:
 
 - [ ] **Step 7: Run config tests and lint**
 
-Run: `pytest tests/test_config.py -v`
+Run: `uv run pytest tests/test_config.py -v`
 
 Expected: PASS.
 
-Run: `ruff check config.py tests/test_config.py`
+Run: `uv run ruff check config.py tests/test_config.py`
 
 Expected: PASS.
 
@@ -350,7 +350,7 @@ def test_initial_migration_contains_required_tables_and_indexes():
 
 - [ ] **Step 2: Run the test and verify it fails**
 
-Run: `pytest tests/test_migration_sql.py -v`
+Run: `uv run pytest tests/test_migration_sql.py -v`
 
 Expected: FAIL because `migrations/001_initial_schema.sql` does not exist.
 
@@ -510,11 +510,11 @@ if __name__ == "__main__":
 
 - [ ] **Step 6: Run migration SQL tests and lint**
 
-Run: `pytest tests/test_migration_sql.py -v`
+Run: `uv run pytest tests/test_migration_sql.py -v`
 
 Expected: PASS.
 
-Run: `ruff check repositories migrations tests/test_migration_sql.py`
+Run: `uv run ruff check repositories migrations tests/test_migration_sql.py`
 
 Expected: PASS.
 
@@ -596,7 +596,7 @@ def test_parse_history_text_extracts_telegram_export_lines():
 
 - [ ] **Step 3: Run tests and verify they fail**
 
-Run: `pytest tests/test_text_services.py tests/test_imports.py -v`
+Run: `uv run pytest tests/test_text_services.py tests/test_imports.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'services'`.
 
@@ -694,11 +694,11 @@ def parse_history_text(raw_text: str) -> ParsedHistory:
 
 - [ ] **Step 6: Run tests and lint**
 
-Run: `pytest tests/test_text_services.py tests/test_imports.py -v`
+Run: `uv run pytest tests/test_text_services.py tests/test_imports.py -v`
 
 Expected: PASS.
 
-Run: `ruff check services tests/test_text_services.py tests/test_imports.py`
+Run: `uv run ruff check services tests/test_text_services.py tests/test_imports.py`
 
 Expected: PASS.
 
@@ -775,7 +775,7 @@ def test_generation_mode_constants():
 
 - [ ] **Step 2: Run tests and verify they fail against old generator**
 
-Run: `pytest tests/test_markchain.py -v`
+Run: `uv run pytest tests/test_markchain.py -v`
 
 Expected: FAIL because `GenerationMode` and `generate_markov_text` do not exist.
 
@@ -906,11 +906,11 @@ async def textCleaner(text: str) -> str:
 
 - [ ] **Step 4: Run generator tests and lint**
 
-Run: `pytest tests/test_markchain.py tests/test_text_services.py -v`
+Run: `uv run pytest tests/test_markchain.py tests/test_text_services.py -v`
 
 Expected: PASS.
 
-Run: `ruff check markchain.py tests/test_markchain.py`
+Run: `uv run ruff check markchain.py tests/test_markchain.py`
 
 Expected: PASS.
 
@@ -1014,7 +1014,7 @@ async def test_get_messages_returns_plain_strings():
 
 - [ ] **Step 2: Run tests and verify they fail**
 
-Run: `pytest tests/test_repositories_unit.py -v`
+Run: `uv run pytest tests/test_repositories_unit.py -v`
 
 Expected: FAIL because repository modules do not exist.
 
@@ -1196,11 +1196,11 @@ class MessageRepository:
 
 - [ ] **Step 5: Run repository tests and lint**
 
-Run: `pytest tests/test_repositories_unit.py -v`
+Run: `uv run pytest tests/test_repositories_unit.py -v`
 
 Expected: PASS.
 
-Run: `ruff check repositories tests/test_repositories_unit.py`
+Run: `uv run ruff check repositories tests/test_repositories_unit.py`
 
 Expected: PASS.
 
@@ -1329,7 +1329,7 @@ async def test_generation_service_returns_text():
 
 - [ ] **Step 3: Run tests and verify they fail**
 
-Run: `pytest tests/test_learning_service.py tests/test_generation_service.py -v`
+Run: `uv run pytest tests/test_learning_service.py tests/test_generation_service.py -v`
 
 Expected: FAIL because service modules do not exist.
 
@@ -1433,11 +1433,11 @@ class GenerationService:
 
 - [ ] **Step 6: Run service tests and lint**
 
-Run: `pytest tests/test_learning_service.py tests/test_generation_service.py -v`
+Run: `uv run pytest tests/test_learning_service.py tests/test_generation_service.py -v`
 
 Expected: PASS.
 
-Run: `ruff check services tests/test_learning_service.py tests/test_generation_service.py`
+Run: `uv run ruff check services tests/test_learning_service.py tests/test_generation_service.py`
 
 Expected: PASS.
 
@@ -1516,7 +1516,7 @@ async def test_get_all_messages_uses_configured_database():
 
 - [ ] **Step 2: Run test and verify it fails against old SQLite facade**
 
-Run: `pytest tests/test_dbconnector_facade.py -v`
+Run: `uv run pytest tests/test_dbconnector_facade.py -v`
 
 Expected: FAIL because `set_database` does not exist.
 
@@ -1621,11 +1621,11 @@ async def setChatMode(chat_id, mode):
 
 - [ ] **Step 4: Run facade tests and existing unit tests**
 
-Run: `pytest tests/test_dbconnector_facade.py tests/test_repositories_unit.py -v`
+Run: `uv run pytest tests/test_dbconnector_facade.py tests/test_repositories_unit.py -v`
 
 Expected: PASS.
 
-Run: `ruff check dbconnector.py tests/test_dbconnector_facade.py`
+Run: `uv run ruff check dbconnector.py tests/test_dbconnector_facade.py`
 
 Expected: PASS.
 
@@ -1677,7 +1677,7 @@ def test_parse_mode_argument_rejects_invalid_mode():
 
 - [ ] **Step 2: Run test and verify it fails**
 
-Run: `pytest tests/test_handler_helpers.py -v`
+Run: `uv run pytest tests/test_handler_helpers.py -v`
 
 Expected: FAIL because `handlers.generation` does not exist.
 
@@ -1937,11 +1937,11 @@ if __name__ == "__main__":
 
 - [ ] **Step 7: Run handler tests and lint**
 
-Run: `pytest tests/test_handler_helpers.py -v`
+Run: `uv run pytest tests/test_handler_helpers.py -v`
 
 Expected: PASS.
 
-Run: `ruff check bot.py handlers tests/test_handler_helpers.py`
+Run: `uv run ruff check bot.py handlers tests/test_handler_helpers.py`
 
 Expected: PASS.
 
@@ -1998,7 +1998,7 @@ async def test_is_chat_admin_rejects_members():
 
 - [ ] **Step 2: Run test and verify it fails**
 
-Run: `pytest tests/test_admin_service.py -v`
+Run: `uv run pytest tests/test_admin_service.py -v`
 
 Expected: FAIL because `services.admin` does not exist.
 
@@ -2132,11 +2132,11 @@ In `handlers/learning.py`, replace the database block in `learn_history_handler`
 
 - [ ] **Step 7: Run admin tests and lint**
 
-Run: `pytest tests/test_admin_service.py tests/test_repositories_unit.py -v`
+Run: `uv run pytest tests/test_admin_service.py tests/test_repositories_unit.py -v`
 
 Expected: PASS.
 
-Run: `ruff check services/admin.py handlers repositories/messages.py tests/test_admin_service.py`
+Run: `uv run ruff check services/admin.py handlers repositories/messages.py tests/test_admin_service.py`
 
 Expected: PASS.
 
@@ -2170,7 +2170,7 @@ def test_parse_mode_argument_accepts_demgen_without_mode():
 
 - [ ] **Step 2: Run test**
 
-Run: `pytest tests/test_handler_helpers.py -v`
+Run: `uv run pytest tests/test_handler_helpers.py -v`
 
 Expected: PASS because the parser already supports this.
 
@@ -2229,11 +2229,11 @@ async def demotivator_handler(message: types.Message) -> None:
 
 - [ ] **Step 4: Run handler tests and lint**
 
-Run: `pytest tests/test_handler_helpers.py -v`
+Run: `uv run pytest tests/test_handler_helpers.py -v`
 
 Expected: PASS.
 
-Run: `ruff check handlers/generation.py tests/test_handler_helpers.py`
+Run: `uv run ruff check handlers/generation.py tests/test_handler_helpers.py`
 
 Expected: PASS.
 
@@ -2287,7 +2287,7 @@ docker compose up --build
 In another shell, apply migrations when needed:
 
 ```bash
-docker compose run --rm bot python migrations/apply.py
+docker compose run --rm bot uv run python migrations/apply.py
 ```
 
 ## Local Development
@@ -2323,13 +2323,13 @@ A normal Telegram bot cannot read messages from before it joined a chat. To trai
 
 - [ ] **Step 2: Run all tests**
 
-Run: `pytest -v`
+Run: `uv run pytest -v`
 
 Expected: PASS.
 
 - [ ] **Step 3: Run lint**
 
-Run: `ruff check .`
+Run: `uv run ruff check .`
 
 Expected: PASS.
 
@@ -2360,8 +2360,8 @@ Expected: commit succeeds.
 
 ## Final Verification Checklist
 
-- [ ] `pytest -v` passes.
-- [ ] `ruff check .` passes.
+- [ ] `uv run pytest -v` passes.
+- [ ] `uv run ruff check .` passes.
 - [ ] `docker compose config` passes.
 - [ ] `git status --short` is clean.
 - [ ] The spec acceptance criteria in `docs/superpowers/specs/2026-06-12-markov-telegram-design.md` are covered by tasks 1-11.
