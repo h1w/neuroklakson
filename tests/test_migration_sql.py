@@ -35,3 +35,11 @@ def test_initial_migration_allows_duplicate_normalized_texts():
 
     assert "idx_messages_chat_normalized_text" not in migration_sql
     assert "ON messages(chat_id, normalized_text)" not in migration_sql
+
+
+def test_external_photos_migration_adds_external_media_table():
+    migration_sql = Path("migrations/003_external_photos.sql").read_text()
+
+    assert "CREATE TABLE IF NOT EXISTS external_photos" in migration_sql
+    assert "external_url TEXT NOT NULL" in migration_sql
+    assert "CREATE INDEX IF NOT EXISTS idx_external_photos_chat_id" in migration_sql

@@ -96,9 +96,9 @@ async def test_generate_demotivator_uses_default_mode_and_random_photo(monkeypat
         def __init__(self, repository_connection):
             assert repository_connection is connection
 
-        async def get_random_photo(self, *, chat_id):
+        async def get_random_photo_source(self, *, chat_id):
             calls["random_photo_chat_id"] = chat_id
-            return "photo-file-id"
+            return {"source": "telegram", "value": "photo-file-id"}
 
     class FakeChatRepository:
         def __init__(self, repository_connection):
@@ -168,7 +168,7 @@ async def test_generate_demotivator_passes_mode_override(monkeypatch):
         def __init__(self, repository_connection):
             pass
 
-        async def get_random_photo(self, *, chat_id):
+        async def get_random_photo_source(self, *, chat_id):
             return None
 
     class FakeGenerationService:
@@ -202,6 +202,67 @@ async def test_generate_demotivator_passes_mode_override(monkeypatch):
 
     assert mode_overrides == ["chaos", "chaos"]
     assert message.answers == ["Я ещё очень тупой, нужно немного подождать"]
+
+
+async def test_generate_demotivator_downloads_external_photo(monkeypatch):
+    calls = {}
+    connection = object()
+
+    class FakeMessageRepository:
+        def __init__(self, repository_connection):
+            assert repository_connection is connection
+
+        async def get_random_photo_source(self, *, chat_id):
+            return {"source": "external", "value": "https://2ch.hk/b/src/1.jpg"}
+
+    class FakeChatRepository:
+        def __init__(self, repository_connection):
+            assert repository_connection is connection
+
+    class FakeGenerationService:
+        def __init__(self, message_repository, chat_repository):
+            pass
+
+        async def generate_message(self, *, chat_id, mode_override, max_words):
+            return "first line" if max_words == 8 else "second line"
+
+    class FakeImage:
+        def save(self, output, format):
+            output.write(b"demotivator-png")
+
+    async def fake_download_external_image(url):
+        calls["external_url"] = url
+        buffer = BytesIO(b"external-photo")
+        buffer.seek(0)
+        return buffer
+
+    async def fake_generate_demotivator(image, top_text, bottom_text, watermark, font):
+        calls["image_bytes"] = image.getvalue()
+        return FakeImage()
+
+    from io import BytesIO
+
+    monkeypatch.setattr("handlers.generation.MessageRepository", FakeMessageRepository)
+    monkeypatch.setattr("handlers.generation.ChatRepository", FakeChatRepository)
+    monkeypatch.setattr("handlers.generation.GenerationService", FakeGenerationService)
+    monkeypatch.setattr("handlers.generation.download_external_image", fake_download_external_image)
+    monkeypatch.setattr("handlers.generation.generateDemotivator", fake_generate_demotivator)
+
+    message = SimpleNamespace(text="/demgen", caption=None, chat=SimpleNamespace(id=100), sent_photos=[])
+
+    async def answer_photo(photo):
+        message.sent_photos.append(photo)
+
+    message.answer_photo = answer_photo
+
+    await generation.generate_demotivator_handler(
+        message,
+        FakeDatabase(connection),
+        SimpleNamespace(bredo_demotivator_watermark="wm", bredo_demotivator_text_font="font.ttf"),
+    )
+
+    assert calls == {"external_url": "https://2ch.hk/b/src/1.jpg", "image_bytes": b"external-photo"}
+    assert len(message.sent_photos) == 1
 
 
 async def test_stats_handler_includes_latest_import_summary(monkeypatch):

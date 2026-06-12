@@ -294,6 +294,49 @@ async def test_message_repository_get_latest_import_returns_none_without_imports
     assert latest_import is None
 
 
+async def test_message_repository_insert_external_photos_bulk_returns_count():
+    connection = FakeConnection(execute_results=["INSERT 0 1", "INSERT 0 1"])
+    repository = MessageRepository(connection)
+
+    count = await repository.insert_external_photos_bulk(
+        chat_id=100,
+        urls=["https://2ch.hk/b/src/1.jpg", "https://2ch.hk/b/src/2.jpg"],
+        source="2ch",
+        post_url="https://2ch.hk/b/res/123.html",
+    )
+
+    assert count == 2
+    assert len(connection.execute_calls) == 2
+    query, args = connection.execute_calls[0]
+    assert "INSERT INTO external_photos" in query
+    assert args == (100, "2ch", "https://2ch.hk/b/src/1.jpg", "https://2ch.hk/b/res/123.html")
+
+
+async def test_message_repository_get_random_photo_source_prefers_telegram_photo():
+    connection = FakeConnection(fetchrow_row={"file_id": "telegram-file"})
+    repository = MessageRepository(connection)
+
+    photo = await repository.get_random_photo_source(chat_id=100)
+
+    assert photo == {"source": "telegram", "value": "telegram-file"}
+
+
+async def test_message_repository_get_random_photo_source_falls_back_to_external_url():
+    connection = FakeConnection(fetchrow_row=None)
+    connection._fetchrow_rows = [None, {"external_url": "https://2ch.hk/b/src/1.jpg"}]
+
+    async def fetchrow(query, *args):
+        connection.fetchrow_calls.append((query, args))
+        return connection._fetchrow_rows.pop(0)
+
+    connection.fetchrow = fetchrow
+    repository = MessageRepository(connection)
+
+    photo = await repository.get_random_photo_source(chat_id=100)
+
+    assert photo == {"source": "external", "value": "https://2ch.hk/b/src/1.jpg"}
+
+
 def test_repository_public_write_and_read_methods_use_keyword_only_parameters():
     methods = [
         ChatRepository.upsert_chat,
@@ -303,9 +346,11 @@ def test_repository_public_write_and_read_methods_use_keyword_only_parameters():
         MessageRepository.finish_import,
         MessageRepository.fail_import,
         MessageRepository.insert_photo,
+        MessageRepository.insert_external_photos_bulk,
         MessageRepository.get_messages,
         MessageRepository.get_random_message,
         MessageRepository.get_random_photo,
+        MessageRepository.get_random_photo_source,
         MessageRepository.get_stats,
         MessageRepository.get_latest_import,
     ]

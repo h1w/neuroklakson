@@ -82,6 +82,7 @@ uv run ruff check .
 - `/gm [mode]` - generate a Markov message. The optional mode is `normal`, `absurd`, or `chaos`.
 - `/demgen [mode]` - generate a demotivator. The optional mode is `normal`, `absurd`, or `chaos`.
 - `/learn_history` - admin-only; import and learn from exported chat history in an attached or replied-to text document.
+- `/rt2ch <thread_url>` - admin-only; import post text and external image URLs from a 2ch thread.
 - `/set_mode <mode>` - admin-only; set the chat's default generation mode.
 - `/stats` - show learning and generation statistics for the chat.
 - `/help` - show bot help.

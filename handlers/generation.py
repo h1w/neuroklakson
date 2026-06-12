@@ -12,6 +12,7 @@ from repositories.chats import ChatRepository
 from repositories.database import Database
 from repositories.messages import MessageRepository
 from services.generation import GenerationService
+from services.media import download_external_image
 
 router = Router()
 
@@ -81,15 +82,18 @@ async def generate_demotivator_handler(
             mode_override=mode,
             max_words=12,
         )
-        photo_file_id = await message_repository.get_random_photo(chat_id=message.chat.id)
+        photo_source = await message_repository.get_random_photo_source(chat_id=message.chat.id)
 
-    if first_line is None or second_line is None or photo_file_id is None:
+    if first_line is None or second_line is None or photo_source is None:
         await message.answer(NEED_MORE_MATERIAL_MESSAGE)
         return
 
-    photo_bytes = BytesIO()
-    await message.bot.download(photo_file_id, destination=photo_bytes)
-    photo_bytes.seek(0)
+    if photo_source["source"] == "telegram":
+        photo_bytes = BytesIO()
+        await message.bot.download(photo_source["value"], destination=photo_bytes)
+        photo_bytes.seek(0)
+    else:
+        photo_bytes = await download_external_image(photo_source["value"])
     demotivator_image = await generateDemotivator(
         photo_bytes,
         first_line,

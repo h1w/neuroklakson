@@ -7,7 +7,7 @@ import sys
 from aiogram import Bot, Dispatcher
 
 from config import load_legacy_config, load_settings
-from handlers import common, generation, learning, legacy
+from handlers import common, generation, learning, legacy, twoch
 from repositories.database import Database
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -23,6 +23,7 @@ async def main() -> None:
     dispatcher.include_router(common.router)
     dispatcher.include_router(legacy.router)
     dispatcher.include_router(generation.router)
+    dispatcher.include_router(twoch.router)
     dispatcher.include_router(learning.router)
 
     try:

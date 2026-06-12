@@ -9,6 +9,8 @@ dependencies = [
     "markovify>=0.9,<1",
     "pillow>=10,<11",
     "gtts>=2.5,<3",
+    "beautifulsoup4>=4.15.0",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]

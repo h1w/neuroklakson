@@ -152,6 +152,30 @@ class MessageRepository:
             file_id,
         )
 
+    async def insert_external_photos_bulk(
+        self,
+        *,
+        chat_id: int,
+        urls: Sequence[str],
+        source: str,
+        post_url: str | None,
+    ) -> int:
+        accepted_count = 0
+        for url in urls:
+            result = await self.connection.execute(
+                """
+                INSERT INTO external_photos (chat_id, source, external_url, post_url)
+                VALUES ($1, $2, $3, $4)
+                """,
+                chat_id,
+                source,
+                url,
+                post_url,
+            )
+            if result == "INSERT 0 1":
+                accepted_count += 1
+        return accepted_count
+
     async def get_messages(self, *, chat_id: int) -> list[str]:
         rows = await self.connection.fetch(
             """
@@ -193,6 +217,34 @@ class MessageRepository:
         if row is None:
             return None
         return row["file_id"]
+
+    async def get_random_photo_source(self, *, chat_id: int) -> dict[str, str] | None:
+        telegram_row = await self.connection.fetchrow(
+            """
+            SELECT file_id
+            FROM photos
+            WHERE chat_id = $1
+            ORDER BY RANDOM()
+            LIMIT 1
+            """,
+            chat_id,
+        )
+        if telegram_row is not None:
+            return {"source": "telegram", "value": telegram_row["file_id"]}
+
+        external_row = await self.connection.fetchrow(
+            """
+            SELECT external_url
+            FROM external_photos
+            WHERE chat_id = $1
+            ORDER BY RANDOM()
+            LIMIT 1
+            """,
+            chat_id,
+        )
+        if external_row is None:
+            return None
+        return {"source": "external", "value": external_row["external_url"]}
 
     async def get_stats(self, *, chat_id: int) -> dict[str, int]:
         row = await self.connection.fetchrow(

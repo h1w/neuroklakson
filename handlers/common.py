@@ -22,6 +22,7 @@ HELP_TEXT = """Команды бота:
 /set_mode <normal|absurd|chaos> - установить режим генерации по умолчанию
 /stats, /s - статистика чата
 /learn_history - импортировать историю из ответа или txt-документа
+/readtread2ch, /rt2ch <url> - импортировать тред 2ch
 """
 
 
