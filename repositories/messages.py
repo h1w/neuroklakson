@@ -77,6 +77,64 @@ class MessageRepository:
                 accepted_count += 1
         return accepted_count
 
+    async def create_import(
+        self,
+        *,
+        chat_id: int,
+        admin_user_id: int,
+        filename: str,
+    ) -> int:
+        return await self.connection.fetchval(
+            """
+            INSERT INTO imports (chat_id, admin_user_id, filename, status)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            chat_id,
+            admin_user_id,
+            filename,
+            "started",
+        )
+
+    async def finish_import(
+        self,
+        *,
+        import_id: int,
+        accepted_count: int,
+        rejected_count: int,
+    ) -> None:
+        await self.connection.execute(
+            """
+            UPDATE imports
+            SET status = 'completed',
+                accepted_count = $2,
+                rejected_count = $3,
+                updated_at = NOW()
+            WHERE id = $1
+            """,
+            import_id,
+            accepted_count,
+            rejected_count,
+        )
+
+    async def fail_import(
+        self,
+        *,
+        import_id: int,
+        error_text: str,
+    ) -> None:
+        await self.connection.execute(
+            """
+            UPDATE imports
+            SET status = 'failed',
+                error_text = $2,
+                updated_at = NOW()
+            WHERE id = $1
+            """,
+            import_id,
+            error_text[:500],
+        )
+
     async def insert_photo(
         self,
         *,

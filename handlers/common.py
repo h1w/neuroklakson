@@ -9,8 +9,11 @@ from handlers.generation import parse_mode_argument
 from repositories.chats import ChatRepository
 from repositories.database import Database
 from repositories.messages import MessageRepository
+from services.admin import is_chat_admin
 
 router = Router()
+
+ADMIN_ONLY_MESSAGE = "Эта команда только для админов чата"
 
 
 def _chat_title(message: Message) -> str | None:
@@ -40,6 +43,14 @@ async def help_handler(message: Message) -> None:
 
 @router.message(Command("set_mode"))
 async def set_mode_handler(message: Message, database: Database, settings: Settings) -> None:
+    if not await is_chat_admin(
+        message.bot,
+        chat_id=message.chat.id,
+        user_id=message.from_user.id if message.from_user else None,
+    ):
+        await message.answer(ADMIN_ONLY_MESSAGE)
+        return
+
     try:
         mode = parse_mode_argument(message.text or message.caption)
     except ValueError as exc:

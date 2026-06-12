@@ -126,6 +126,54 @@ async def test_message_repository_insert_messages_bulk_returns_accepted_count():
         assert args[5:] == ("import", None)
 
 
+async def test_message_repository_create_import_records_started_import_and_returns_id():
+    connection = FakeConnection(fetchval_value=42)
+    repository = MessageRepository(connection)
+
+    import_id = await repository.create_import(
+        chat_id=100,
+        admin_user_id=55,
+        filename="history.txt",
+    )
+
+    query, args = connection.fetchval_calls[0]
+    assert import_id == 42
+    assert "INSERT INTO imports" in query
+    assert "status" in query
+    assert "RETURNING id" in query
+    assert args == (100, 55, "history.txt", "started")
+
+
+async def test_message_repository_finish_import_marks_completed_with_counts():
+    connection = FakeConnection()
+    repository = MessageRepository(connection)
+
+    await repository.finish_import(import_id=42, accepted_count=7, rejected_count=3)
+
+    query, args = connection.execute_calls[0]
+    assert "UPDATE imports" in query
+    assert "status = 'completed'" in query
+    assert "accepted_count" in query
+    assert "rejected_count" in query
+    assert "updated_at = NOW()" in query
+    assert args == (42, 7, 3)
+
+
+async def test_message_repository_fail_import_marks_failed_and_truncates_error_text():
+    connection = FakeConnection()
+    repository = MessageRepository(connection)
+    long_error = "x" * 501
+
+    await repository.fail_import(import_id=42, error_text=long_error)
+
+    query, args = connection.execute_calls[0]
+    assert "UPDATE imports" in query
+    assert "status = 'failed'" in query
+    assert "error_text" in query
+    assert "updated_at = NOW()" in query
+    assert args == (42, "x" * 500)
+
+
 async def test_message_repository_insert_photo_records_file_id():
     connection = FakeConnection()
     repository = MessageRepository(connection)
@@ -213,6 +261,9 @@ def test_repository_public_write_and_read_methods_use_keyword_only_parameters():
         ChatRepository.upsert_chat,
         MessageRepository.insert_message,
         MessageRepository.insert_messages_bulk,
+        MessageRepository.create_import,
+        MessageRepository.finish_import,
+        MessageRepository.fail_import,
         MessageRepository.insert_photo,
         MessageRepository.get_messages,
         MessageRepository.get_random_message,

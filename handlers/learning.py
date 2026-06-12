@@ -10,10 +10,13 @@ from config import Settings
 from repositories.chats import ChatRepository
 from repositories.database import Database
 from repositories.messages import MessageRepository
+from services.admin import is_chat_admin
 from services.imports import parse_history_text
 from services.learning import LearningService
 
 router = Router()
+
+ADMIN_ONLY_MESSAGE = "Эта команда только для админов чата"
 
 
 def _message_text(message: Message) -> str | None:
@@ -56,15 +59,33 @@ async def _learn_imported_text(
     raw_text: str,
     database: Database,
     settings: Settings,
+    *,
+    admin_user_id: int,
+    filename: str,
 ) -> None:
-    parsed = parse_history_text(raw_text)
     async with database.acquire() as connection:
         await _upsert_chat(connection, message, settings)
-        inserted = await MessageRepository(connection).insert_messages_bulk(
+        repository = MessageRepository(connection)
+        import_id = await repository.create_import(
             chat_id=message.chat.id,
-            messages=parsed.accepted,
-            source="import",
+            admin_user_id=admin_user_id,
+            filename=filename,
         )
+        try:
+            parsed = parse_history_text(raw_text)
+            inserted = await repository.insert_messages_bulk(
+                chat_id=message.chat.id,
+                messages=parsed.accepted,
+                source="import",
+            )
+            await repository.finish_import(
+                import_id=import_id,
+                accepted_count=inserted,
+                rejected_count=parsed.rejected_count,
+            )
+        except Exception as exc:
+            await repository.fail_import(import_id=import_id, error_text=str(exc))
+            raise
 
     await message.answer(
         f"Импортировано: {inserted}. Отклонено: {parsed.rejected_count}."
@@ -77,6 +98,14 @@ async def learn_forwarded_handler(
     database: Database,
     settings: Settings,
 ) -> None:
+    if not await is_chat_admin(
+        message.bot,
+        chat_id=message.chat.id,
+        user_id=message.from_user.id if message.from_user else None,
+    ):
+        await message.answer(ADMIN_ONLY_MESSAGE)
+        return
+
     if message.reply_to_message is None:
         await message.answer("Ответь командой на сообщение, которое нужно выучить.")
         return
@@ -102,6 +131,15 @@ async def learn_history_handler(
     database: Database,
     settings: Settings,
 ) -> None:
+    admin_user_id = message.from_user.id if message.from_user else None
+    if not await is_chat_admin(
+        message.bot,
+        chat_id=message.chat.id,
+        user_id=admin_user_id,
+    ):
+        await message.answer(ADMIN_ONLY_MESSAGE)
+        return
+
     document = select_history_document(message)
     if document is None:
         await message.answer("Ответь на txt-документ с историей или приложи его к команде.")
@@ -114,6 +152,8 @@ async def learn_history_handler(
         buffer.getvalue().decode("utf-8", errors="ignore"),
         database,
         settings,
+        admin_user_id=admin_user_id,
+        filename=document.file_name or document.file_id,
     )
 
 
