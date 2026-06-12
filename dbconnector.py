@@ -1,118 +1,96 @@
-import aiosqlite
+from __future__ import annotations
 
-dbfilename = 'database.db'
+from typing import Any
 
-async def createTable():
-    async with aiosqlite.connect(dbfilename) as db:
-        await db.execute(
-            """
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id INTEGER NOT NULL,
-                message TEXT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        
-        await db.execute(
-            """
-            CREATE TABLE IF NOT EXISTS photoes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id INTEGER NOT NULL,
-                file_id TEXT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        
-        await db.commit()
-        await db.close()
-    
+from repositories.chats import ChatRepository
+from repositories.messages import MessageRepository
+
+_database: Any | None = None
+
+
+def set_database(database: Any | None) -> None:
+    global _database
+    _database = database
+
+
+def _require_database() -> Any:
+    if _database is None:
+        raise RuntimeError("Database is not configured")
+    return _database
+
+
+async def createTable() -> None:
+    return None
+
+
 async def insertMessage(chat_id, message):
-    async with aiosqlite.connect(dbfilename) as db:
-        await db.execute(
-            "INSERT INTO messages (chat_id, message) VALUES (?, ?)",
-            (chat_id, message)
+    database = _require_database()
+    async with database.acquire() as connection:
+        await MessageRepository(connection).insert_message(
+            chat_id=chat_id,
+            telegram_message_id=None,
+            user_id=None,
+            text=message,
+            normalized_text=message,
+            source="message",
+            forwarded_from=None,
         )
-        await db.commit()
-        await db.close()
+
 
 async def insertMessages(chat_id, messages_list):
-    async with aiosqlite.connect(dbfilename) as db:
-        for message in messages_list:
-            await db.execute(
-                "INSERT INTO messages (chat_id, message) VALUES (?, ?)",
-                (chat_id, message)
-            )
-        await db.commit()
-        await db.close()
+    database = _require_database()
+    async with database.acquire() as connection:
+        await MessageRepository(connection).insert_messages_bulk(
+            chat_id=chat_id,
+            messages=messages_list,
+            source="import",
+        )
+
 
 async def insertPhoto(chat_id, file_id):
-    async with aiosqlite.connect(dbfilename) as db:
-        await db.execute(
-            "INSERT INTO photoes (chat_id, file_id) VALUES (?, ?)",
-            (chat_id, file_id)
+    database = _require_database()
+    async with database.acquire() as connection:
+        await MessageRepository(connection).insert_photo(
+            chat_id=chat_id,
+            telegram_message_id=None,
+            file_id=file_id,
         )
-        await db.commit()
-        await db.close()
+
 
 async def getRandomPhoto(chat_id):
-    async with aiosqlite.connect(dbfilename) as db:
-        async with db.execute(
-            "SELECT file_id FROM photoes WHERE chat_id = ? ORDER BY RANDOM() LIMIT 1",
-            (chat_id,)
-        ) as cursor:
-            random_photo_file_id = await cursor.fetchone()
-        
-        await db.close()
-    
-    return random_photo_file_id[0]
+    database = _require_database()
+    async with database.acquire() as connection:
+        return await MessageRepository(connection).get_random_photo(chat_id=chat_id)
+
 
 async def getRandomMessage(chat_id):
-    async with aiosqlite.connect(dbfilename) as db:
-        async with db.execute(
-            "SELECT message FROM messages WHERE chat_id = ? ORDER BY RANDOM() LIMIT 1",
-            (chat_id,)
-        ) as cursor:
-            random_message = await cursor.fetchone()
-        
-        await db.close()
-    
-    return random_message[0]
+    messages = await getAllMessages(chat_id)
+    if not messages:
+        return None
+    return messages[0]
+
 
 async def getAllMessages(chat_id):
-    async with aiosqlite.connect(dbfilename) as db:
-        async with db.execute(
-            "SELECT message FROM messages WHERE chat_id = ?",
-            (chat_id, )
-        ) as cursor:
-            all_messages = await cursor.fetchall()
-        
-        await db.close()
-    
-    return list(map(lambda x: ''.join(x), all_messages))
+    database = _require_database()
+    async with database.acquire() as connection:
+        return await MessageRepository(connection).get_messages(chat_id=chat_id)
+
 
 async def getMessagesCount(chat_id):
-    async with aiosqlite.connect(dbfilename) as db:
-        async with db.execute(
-            "SELECT count(*) FROM messages WHERE chat_id = ?",
-            (chat_id, )
-        ) as cursor:
-            messages_count = await cursor.fetchone()
-        
-        await db.close()
-    
-    return messages_count[0]
+    database = _require_database()
+    async with database.acquire() as connection:
+        stats = await MessageRepository(connection).get_stats(chat_id=chat_id)
+    return stats["total"]
+
 
 async def getPhotosCount(chat_id):
-    async with aiosqlite.connect(dbfilename) as db:
-        async with db.execute(
-            "SELECT count(*) FROM photoes WHERE chat_id = ?",
-            (chat_id, )
-        ) as cursor:
-            photos_count = await cursor.fetchone()
-        
-        await db.close()
-    
-    return photos_count[0]
+    database = _require_database()
+    async with database.acquire() as connection:
+        stats = await MessageRepository(connection).get_stats(chat_id=chat_id)
+    return stats["photos"]
+
+
+async def setChatMode(chat_id, mode):
+    database = _require_database()
+    async with database.acquire() as connection:
+        await ChatRepository(connection).set_default_mode(chat_id=chat_id, mode=mode)
