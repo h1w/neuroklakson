@@ -23,9 +23,19 @@ async def createTable() -> None:
     return None
 
 
+async def _ensure_chat(connection: Any, chat_id: int) -> None:
+    await ChatRepository(connection).upsert_chat(
+        chat_id=chat_id,
+        title=None,
+        chat_type="unknown",
+        default_mode="absurd",
+    )
+
+
 async def insertMessage(chat_id, message):
     database = _require_database()
     async with database.acquire() as connection:
+        await _ensure_chat(connection, chat_id)
         await MessageRepository(connection).insert_message(
             chat_id=chat_id,
             telegram_message_id=None,
@@ -40,6 +50,7 @@ async def insertMessage(chat_id, message):
 async def insertMessages(chat_id, messages_list):
     database = _require_database()
     async with database.acquire() as connection:
+        await _ensure_chat(connection, chat_id)
         await MessageRepository(connection).insert_messages_bulk(
             chat_id=chat_id,
             messages=messages_list,
@@ -50,6 +61,7 @@ async def insertMessages(chat_id, messages_list):
 async def insertPhoto(chat_id, file_id):
     database = _require_database()
     async with database.acquire() as connection:
+        await _ensure_chat(connection, chat_id)
         await MessageRepository(connection).insert_photo(
             chat_id=chat_id,
             telegram_message_id=None,
@@ -64,10 +76,9 @@ async def getRandomPhoto(chat_id):
 
 
 async def getRandomMessage(chat_id):
-    messages = await getAllMessages(chat_id)
-    if not messages:
-        return None
-    return messages[0]
+    database = _require_database()
+    async with database.acquire() as connection:
+        return await MessageRepository(connection).get_random_message(chat_id=chat_id)
 
 
 async def getAllMessages(chat_id):

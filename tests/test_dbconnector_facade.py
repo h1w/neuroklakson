@@ -76,6 +76,32 @@ async def test_insert_message_delegates_to_message_repository():
 
     await dbconnector.insertMessage(100, "сырный автобус")
 
-    query, args = connection.execute_calls[0]
-    assert "INSERT INTO messages" in query
-    assert args == (100, None, None, "сырный автобус", "сырный автобус", "message", None)
+    chat_query, chat_args = connection.execute_calls[0]
+    message_query, message_args = connection.execute_calls[1]
+    assert "INSERT INTO chats" in chat_query
+    assert chat_args == (100, None, "unknown", "absurd")
+    assert "INSERT INTO messages" in message_query
+    assert message_args == (100, None, None, "сырный автобус", "сырный автобус", "message", None)
+
+
+async def test_get_random_message_uses_random_message_query():
+    connection = FakeConnection(fetchrow_row={"normalized_text": "рандом"})
+    dbconnector.set_database(FakeDatabase(connection))
+
+    message = await dbconnector.getRandomMessage(100)
+
+    query, args = connection.fetchrow_calls[0]
+    assert message == "рандом"
+    assert "SELECT normalized_text" in query
+    assert "ORDER BY RANDOM()" in query
+    assert "LIMIT 1" in query
+    assert args == (100,)
+
+
+async def test_get_random_message_returns_none_without_row():
+    connection = FakeConnection(fetchrow_row=None)
+    dbconnector.set_database(FakeDatabase(connection))
+
+    message = await dbconnector.getRandomMessage(100)
+
+    assert message is None

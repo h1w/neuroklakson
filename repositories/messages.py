@@ -106,6 +106,21 @@ class MessageRepository:
         )
         return [row["normalized_text"] for row in rows]
 
+    async def get_random_message(self, *, chat_id: int) -> str | None:
+        row = await self.connection.fetchrow(
+            """
+            SELECT normalized_text
+            FROM messages
+            WHERE chat_id = $1
+            ORDER BY RANDOM()
+            LIMIT 1
+            """,
+            chat_id,
+        )
+        if row is None:
+            return None
+        return row["normalized_text"]
+
     async def get_random_photo(self, *, chat_id: int) -> str | None:
         row = await self.connection.fetchrow(
             """

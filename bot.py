@@ -10,9 +10,10 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart, Filter
 
 import dbconnector as dbc
-from config import load_legacy_config
+from config import load_legacy_config, load_settings
 from demotivate import generateDemotivator, generateQuote
 from markchain import makeShortSentence
+from repositories.database import Database
 from utils import (
     doWithProbability,
     normalizeStringForDemotivator,
@@ -335,8 +336,16 @@ async def catchMessages(message: types.Message) -> None:
         pass
 
 async def main() -> None:
-    await dbc.createTable()
-    await dp.start_polling(bot)
+    settings = load_settings()
+    database = Database(settings.database_url)
+    try:
+        await database.connect()
+        dbc.set_database(database)
+        await dbc.createTable()
+        await dp.start_polling(bot)
+    finally:
+        dbc.set_database(None)
+        await database.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

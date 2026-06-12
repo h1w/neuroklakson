@@ -215,6 +215,7 @@ def test_repository_public_write_and_read_methods_use_keyword_only_parameters():
         MessageRepository.insert_messages_bulk,
         MessageRepository.insert_photo,
         MessageRepository.get_messages,
+        MessageRepository.get_random_message,
         MessageRepository.get_random_photo,
         MessageRepository.get_stats,
     ]
