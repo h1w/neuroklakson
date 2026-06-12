@@ -6,6 +6,7 @@ from aiogram.types import Message
 
 from config import GENERATION_MODES
 from repositories.chats import ChatRepository
+from repositories.database import Database
 from repositories.messages import MessageRepository
 from services.generation import GenerationService
 
@@ -28,14 +29,13 @@ def parse_mode_argument(text: str | None) -> str | None:
 
 
 @router.message(Command("generatemessage", "genmsg", "gm"))
-async def generate_message_handler(message: Message) -> None:
+async def generate_message_handler(message: Message, database: Database) -> None:
     try:
         mode = parse_mode_argument(message.text or message.caption)
     except ValueError as exc:
         await message.answer(str(exc))
         return
 
-    database = message.bot["database"]
     async with database.acquire() as connection:
         service = GenerationService(
             MessageRepository(connection),

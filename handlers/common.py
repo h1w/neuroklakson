@@ -4,8 +4,10 @@ from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
+from config import Settings
 from handlers.generation import parse_mode_argument
 from repositories.chats import ChatRepository
+from repositories.database import Database
 from repositories.messages import MessageRepository
 
 router = Router()
@@ -37,7 +39,7 @@ async def help_handler(message: Message) -> None:
 
 
 @router.message(Command("set_mode"))
-async def set_mode_handler(message: Message) -> None:
+async def set_mode_handler(message: Message, database: Database, settings: Settings) -> None:
     try:
         mode = parse_mode_argument(message.text or message.caption)
     except ValueError as exc:
@@ -48,8 +50,6 @@ async def set_mode_handler(message: Message) -> None:
         await message.answer("Укажи режим: normal, absurd или chaos")
         return
 
-    database = message.bot["database"]
-    settings = message.bot["settings"]
     async with database.acquire() as connection:
         repository = ChatRepository(connection)
         await repository.upsert_chat(
@@ -64,8 +64,7 @@ async def set_mode_handler(message: Message) -> None:
 
 
 @router.message(Command("stats", "s"))
-async def stats_handler(message: Message) -> None:
-    database = message.bot["database"]
+async def stats_handler(message: Message, database: Database) -> None:
     async with database.acquire() as connection:
         chat_repository = ChatRepository(connection)
         message_repository = MessageRepository(connection)

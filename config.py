@@ -35,6 +35,18 @@ class Settings:
     bredo_quote_headline_text_font: str = "fonts/OpenSans-Bold.ttf"
     bredo_quote_author_name_text_font: str = "fonts/OpenSans-Regular.ttf"
     bredo_quote_quote_text_font: str = "fonts/OpenSans-Italic.ttf"
+    bredo_demotivator_min_word_size: int = 3
+    bredo_demotivator_max_word_size: int = 8
+    bredo_demotivator_second_line_min_word_size: int = 3
+    bredo_demotivator_second_line_max_word_size: int = 12
+    bredo_message_min_word_size: int = 5
+    bredo_message_max_word_size: int = 30
+    bredo_bugurt_message_min_word_size: int = 8
+    bredo_bugurt_message_max_word_size: int = 40
+    bredo_bugurt_message_min_words_per_line: int = 2
+    bredo_bugurt_message_max_words_per_line: int = 8
+    bredo_bugurt_message_min_lines: int = 2
+    bredo_bugurt_message_max_lines: int = 8
 
     def __post_init__(self) -> None:
         if self.default_generation_mode not in GENERATION_MODES:
@@ -91,6 +103,26 @@ def load_settings() -> Settings:
         bredo_quote_quote_text_font=os.getenv(
             "BREDO_QUOTE_QUOTE_TEXT_FONT", "fonts/OpenSans-Italic.ttf"
         ),
+        bredo_demotivator_min_word_size=_int_env("BREDO_DEMOTIVATOR_MIN_WORD_SIZE", 3),
+        bredo_demotivator_max_word_size=_int_env("BREDO_DEMOTIVATOR_MAX_WORD_SIZE", 8),
+        bredo_demotivator_second_line_min_word_size=_int_env(
+            "BREDO_DEMOTIVATOR_SECOND_LINE_MIN_WORD_SIZE", 3
+        ),
+        bredo_demotivator_second_line_max_word_size=_int_env(
+            "BREDO_DEMOTIVATOR_SECOND_LINE_MAX_WORD_SIZE", 12
+        ),
+        bredo_message_min_word_size=_int_env("BREDO_MESSAGE_MIN_WORD_SIZE", 5),
+        bredo_message_max_word_size=_int_env("BREDO_MESSAGE_MAX_WORD_SIZE", 30),
+        bredo_bugurt_message_min_word_size=_int_env("BREDO_BUGURT_MESSAGE_MIN_WORD_SIZE", 8),
+        bredo_bugurt_message_max_word_size=_int_env("BREDO_BUGURT_MESSAGE_MAX_WORD_SIZE", 40),
+        bredo_bugurt_message_min_words_per_line=_int_env(
+            "BREDO_BUGURT_MESSAGE_MIN_WORDS_PER_LINE", 2
+        ),
+        bredo_bugurt_message_max_words_per_line=_int_env(
+            "BREDO_BUGURT_MESSAGE_MAX_WORDS_PER_LINE", 8
+        ),
+        bredo_bugurt_message_min_lines=_int_env("BREDO_BUGURT_MESSAGE_MIN_LINES", 2),
+        bredo_bugurt_message_max_lines=_int_env("BREDO_BUGURT_MESSAGE_MAX_LINES", 8),
     )
 
 

@@ -6,7 +6,9 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from config import Settings
 from repositories.chats import ChatRepository
+from repositories.database import Database
 from repositories.messages import MessageRepository
 from services.imports import parse_history_text
 from services.learning import LearningService
@@ -32,10 +34,32 @@ def _forwarded_from(message: Message) -> str | None:
     return None
 
 
-async def _learn_imported_text(message: Message, raw_text: str) -> None:
+def select_history_document(message: Message):
+    if message.document is not None:
+        return message.document
+    if message.reply_to_message is not None:
+        return message.reply_to_message.document
+    return None
+
+
+async def _upsert_chat(connection, message: Message, settings: Settings) -> None:
+    await ChatRepository(connection).upsert_chat(
+        chat_id=message.chat.id,
+        title=_chat_title(message),
+        chat_type=message.chat.type,
+        default_mode=settings.default_generation_mode,
+    )
+
+
+async def _learn_imported_text(
+    message: Message,
+    raw_text: str,
+    database: Database,
+    settings: Settings,
+) -> None:
     parsed = parse_history_text(raw_text)
-    database = message.bot["database"]
     async with database.acquire() as connection:
+        await _upsert_chat(connection, message, settings)
         inserted = await MessageRepository(connection).insert_messages_bulk(
             chat_id=message.chat.id,
             messages=parsed.accepted,
@@ -48,14 +72,18 @@ async def _learn_imported_text(message: Message, raw_text: str) -> None:
 
 
 @router.message(Command("learn_forwarded"))
-async def learn_forwarded_handler(message: Message) -> None:
+async def learn_forwarded_handler(
+    message: Message,
+    database: Database,
+    settings: Settings,
+) -> None:
     if message.reply_to_message is None:
         await message.answer("Ответь командой на сообщение, которое нужно выучить.")
         return
 
     replied = message.reply_to_message
-    database = message.bot["database"]
     async with database.acquire() as connection:
+        await _upsert_chat(connection, message, settings)
         learned = await LearningService(MessageRepository(connection)).learn_text(
             chat_id=message.chat.id,
             telegram_message_id=replied.message_id,
@@ -69,36 +97,35 @@ async def learn_forwarded_handler(message: Message) -> None:
 
 
 @router.message(Command("learn_history"))
-async def learn_history_handler(message: Message) -> None:
-    source_message = message.reply_to_message or message
-    raw_text = _message_text(source_message)
-    if raw_text is not None:
-        await _learn_imported_text(message, raw_text)
-        return
-
-    document = source_message.document
+async def learn_history_handler(
+    message: Message,
+    database: Database,
+    settings: Settings,
+) -> None:
+    document = select_history_document(message)
     if document is None:
-        await message.answer("Ответь на текст истории или приложи txt-документ.")
+        await message.answer("Ответь на txt-документ с историей или приложи его к команде.")
         return
 
     buffer = BytesIO()
     await message.bot.download(document.file_id, destination=buffer)
-    await _learn_imported_text(message, buffer.getvalue().decode("utf-8", errors="ignore"))
+    await _learn_imported_text(
+        message,
+        buffer.getvalue().decode("utf-8", errors="ignore"),
+        database,
+        settings,
+    )
 
 
 @router.message(F.chat.type.in_({"group", "supergroup"}))
-async def passive_learning_handler(message: Message) -> None:
-    database = message.bot["database"]
-    settings = message.bot["settings"]
+async def passive_learning_handler(
+    message: Message,
+    database: Database,
+    settings: Settings,
+) -> None:
     async with database.acquire() as connection:
-        chat_repository = ChatRepository(connection)
         message_repository = MessageRepository(connection)
-        await chat_repository.upsert_chat(
-            chat_id=message.chat.id,
-            title=_chat_title(message),
-            chat_type=message.chat.type,
-            default_mode=settings.default_generation_mode,
-        )
+        await _upsert_chat(connection, message, settings)
 
         learning_service = LearningService(message_repository)
         await learning_service.learn_text(
