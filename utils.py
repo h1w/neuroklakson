@@ -1,6 +1,8 @@
-from PIL import Image
-import re
 import random
+import re
+
+from PIL import Image
+
 
 # Нормализовать текст для демотиватора
 # Ограничить размеры слова
@@ -81,7 +83,6 @@ async def doWithProbability(probability_percent):
 
 async def splitStringIntoLines(text, min_words_per_line=2, max_words_per_line=15, min_lines=2, max_lines=10):
     random_lines = []
-    num_lines = random.randint(min_lines, max_lines)
 
     words = text.split()
 

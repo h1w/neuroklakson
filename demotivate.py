@@ -1,8 +1,9 @@
-from PIL import Image, ImageDraw, ImageFont, ImageOps
 import textwrap
-import configparser
+
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from utils import normalizeStringForDemotivator
+
 
 # Рисуем демотиватор:
 async def generateDemotivator(image, top_text, bottom_text, watermark=None, font='fonts/font.ttf') -> Image:

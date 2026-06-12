@@ -1,7 +1,9 @@
-from gtts import gTTS
 from io import BytesIO
 
+from gtts import gTTS
+
 from utils import normalizeStringForDemotivator
+
 
 async def textVoiceover(text, slow=False):
     voice_msg = await normalizeStringForDemotivator(text)
