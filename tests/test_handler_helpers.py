@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import handlers.generation as generation
 from handlers.generation import parse_mode_argument
 from handlers.learning import _learn_imported_text, select_history_document
 
@@ -69,6 +70,7 @@ class FakeDatabase:
 
 def test_parse_mode_argument_returns_none_without_mode():
     assert parse_mode_argument("/gm") is None
+    assert parse_mode_argument("/demgen") is None
 
 
 def test_parse_mode_argument_returns_valid_mode():
@@ -78,6 +80,127 @@ def test_parse_mode_argument_returns_valid_mode():
 def test_parse_mode_argument_rejects_invalid_mode_with_valid_modes():
     with pytest.raises(ValueError, match="normal.*absurd.*chaos|normal.*chaos.*absurd|absurd.*normal.*chaos|absurd.*chaos.*normal|chaos.*normal.*absurd|chaos.*absurd.*normal"):
         parse_mode_argument("/gm cursed")
+
+
+async def test_generate_demotivator_uses_default_mode_and_random_photo(monkeypatch):
+    calls = {"generated": []}
+    connection = object()
+
+    class FakeBot:
+        async def download(self, file_id, destination):
+            calls["download_file_id"] = file_id
+            destination.write(b"photo-bytes")
+
+    class FakeMessageRepository:
+        def __init__(self, repository_connection):
+            assert repository_connection is connection
+
+        async def get_random_photo(self, *, chat_id):
+            calls["random_photo_chat_id"] = chat_id
+            return "photo-file-id"
+
+    class FakeChatRepository:
+        def __init__(self, repository_connection):
+            assert repository_connection is connection
+
+    class FakeGenerationService:
+        def __init__(self, message_repository, chat_repository):
+            assert isinstance(message_repository, FakeMessageRepository)
+            assert isinstance(chat_repository, FakeChatRepository)
+
+        async def generate_message(self, *, chat_id, mode_override, max_words):
+            calls["generated"].append(
+                {"chat_id": chat_id, "mode_override": mode_override, "max_words": max_words}
+            )
+            return "first line" if max_words == 8 else "second line"
+
+    class FakeImage:
+        def save(self, output, format):
+            calls["saved_format"] = format
+            output.write(b"demotivator-png")
+
+    async def fake_generate_demotivator(image, top_text, bottom_text, watermark, font):
+        calls["image_bytes"] = image.getvalue()
+        calls["demotivator_args"] = (top_text, bottom_text, watermark, font)
+        return FakeImage()
+
+    monkeypatch.setattr("handlers.generation.MessageRepository", FakeMessageRepository)
+    monkeypatch.setattr("handlers.generation.ChatRepository", FakeChatRepository)
+    monkeypatch.setattr("handlers.generation.GenerationService", FakeGenerationService)
+    monkeypatch.setattr("handlers.generation.generateDemotivator", fake_generate_demotivator)
+
+    message = SimpleNamespace(
+        text="/demgen",
+        caption=None,
+        chat=SimpleNamespace(id=100),
+        bot=FakeBot(),
+        sent_photos=[],
+    )
+
+    async def answer_photo(photo):
+        message.sent_photos.append(photo)
+
+    message.answer_photo = answer_photo
+
+    await generation.generate_demotivator_handler(
+        message,
+        FakeDatabase(connection),
+        SimpleNamespace(bredo_demotivator_watermark="wm", bredo_demotivator_text_font="font.ttf"),
+    )
+
+    assert calls["random_photo_chat_id"] == 100
+    assert calls["download_file_id"] == "photo-file-id"
+    assert calls["generated"] == [
+        {"chat_id": 100, "mode_override": None, "max_words": 8},
+        {"chat_id": 100, "mode_override": None, "max_words": 12},
+    ]
+    assert calls["image_bytes"] == b"photo-bytes"
+    assert calls["demotivator_args"] == ("first line", "second line", "wm", "font.ttf")
+    assert calls["saved_format"] == "PNG"
+    assert len(message.sent_photos) == 1
+
+
+async def test_generate_demotivator_passes_mode_override(monkeypatch):
+    mode_overrides = []
+
+    class FakeMessageRepository:
+        def __init__(self, repository_connection):
+            pass
+
+        async def get_random_photo(self, *, chat_id):
+            return None
+
+    class FakeGenerationService:
+        def __init__(self, message_repository, chat_repository):
+            pass
+
+        async def generate_message(self, *, chat_id, mode_override, max_words):
+            mode_overrides.append(mode_override)
+            return None
+
+    monkeypatch.setattr("handlers.generation.MessageRepository", FakeMessageRepository)
+    monkeypatch.setattr("handlers.generation.GenerationService", FakeGenerationService)
+
+    message = SimpleNamespace(
+        text="/demgen chaos",
+        caption=None,
+        chat=SimpleNamespace(id=100),
+        answers=[],
+    )
+
+    async def answer(text):
+        message.answers.append(text)
+
+    message.answer = answer
+
+    await generation.generate_demotivator_handler(
+        message,
+        FakeDatabase(object()),
+        SimpleNamespace(bredo_demotivator_watermark="wm", bredo_demotivator_text_font="font.ttf"),
+    )
+
+    assert mode_overrides == ["chaos", "chaos"]
+    assert message.answers == ["Я ещё очень тупой, нужно немного подождать"]
 
 
 def test_runtime_code_does_not_use_bot_mapping_access():
