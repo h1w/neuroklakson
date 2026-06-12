@@ -4,7 +4,7 @@ from services.admin import is_chat_admin
 
 
 class FakeBot:
-    def __init__(self, status: str) -> None:
+    def __init__(self, status) -> None:
         self.status = status
         self.calls = []
 
@@ -22,6 +22,12 @@ async def test_is_chat_admin_accepts_creator():
 
 async def test_is_chat_admin_accepts_administrator():
     bot = FakeBot("administrator")
+
+    assert await is_chat_admin(bot, chat_id=100, user_id=10) is True
+
+
+async def test_is_chat_admin_accepts_enum_like_status_value():
+    bot = FakeBot(SimpleNamespace(value="creator"))
 
     assert await is_chat_admin(bot, chat_id=100, user_id=10) is True
 

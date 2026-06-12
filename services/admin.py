@@ -10,4 +10,5 @@ async def is_chat_admin(bot: Any, *, chat_id: int, user_id: int | None) -> bool:
         return False
 
     chat_member = await bot.get_chat_member(chat_id, user_id)
-    return str(chat_member.status) in ADMIN_STATUSES
+    status = getattr(chat_member.status, "value", chat_member.status)
+    return str(status).lower() in ADMIN_STATUSES

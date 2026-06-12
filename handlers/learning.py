@@ -73,16 +73,17 @@ async def _learn_imported_text(
         )
         try:
             parsed = parse_history_text(raw_text)
-            inserted = await repository.insert_messages_bulk(
-                chat_id=message.chat.id,
-                messages=parsed.accepted,
-                source="import",
-            )
-            await repository.finish_import(
-                import_id=import_id,
-                accepted_count=inserted,
-                rejected_count=parsed.rejected_count,
-            )
+            async with connection.transaction():
+                inserted = await repository.insert_messages_bulk(
+                    chat_id=message.chat.id,
+                    messages=parsed.accepted,
+                    source="import",
+                )
+                await repository.finish_import(
+                    import_id=import_id,
+                    accepted_count=inserted,
+                    rejected_count=parsed.rejected_count,
+                )
         except Exception as exc:
             await repository.fail_import(import_id=import_id, error_text=str(exc))
             raise
