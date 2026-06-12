@@ -213,6 +213,20 @@ def test_generate_markov_text_cleans_after_max_word_truncation(monkeypatch):
     assert result == "кабачок спорит с автобусом"
 
 
+def test_generate_markov_text_applies_morphology_polish(monkeypatch):
+    messages = [
+        "кабачок спорит с автобусом около подъезда",
+        "автобус спорит с чайником около модема",
+        "чайник ругает кабачок через облако",
+    ]
+
+    monkeypatch.setattr(markchain, "_generate_candidate", lambda *args, **kwargs: "с чубайс без кабачок")
+
+    result = markchain.generate_markov_text(messages, mode="chaos", min_words=3, target_words=3, max_words=6)
+
+    assert result == "с чубайсом без кабачка"
+
+
 async def test_make_short_sentence_compatibility_wrapper_respects_max_words():
     result = await markchain.makeShortSentence("\n".join(MESSAGES), max_words=4)
 

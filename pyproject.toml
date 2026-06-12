@@ -11,6 +11,7 @@ dependencies = [
     "gtts>=2.5,<3",
     "beautifulsoup4>=4.15.0",
     "httpx>=0.28.1",
+    "pymorphy3>=2,<3",
 ]
 
 [project.optional-dependencies]

@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Literal
 
+from services.morphology import polish_morphology
 from services.text import clean_generated_text, normalize_training_text
 
 GenerationMode = Literal["normal", "absurd", "chaos"]
@@ -369,10 +370,10 @@ def generate_markov_text(
             random_source=random_source,
         )
 
-    cleaned = clean_generated_text(best_candidate)
+    cleaned = polish_morphology(clean_generated_text(best_candidate))
     if not cleaned:
         return None
-    return " ".join(cleaned.split()[:max_words])
+    return clean_generated_text(" ".join(cleaned.split()[:max_words]))
 
 
 async def create_chain(text: str, chain_length: int = 2):
