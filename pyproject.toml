@@ -4,7 +4,9 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.4,<4",
+    "aiosqlite>=0.20,<1",
     "asyncpg>=0.29,<1",
+    "markovify>=0.9,<1",
     "pillow>=10,<11",
     "gtts>=2.5,<3",
 ]

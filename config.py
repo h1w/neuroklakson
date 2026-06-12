@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 import os
+from configparser import ConfigParser
 from dataclasses import dataclass
 
 GENERATION_MODES = {"normal", "absurd", "chaos"}
+
+LEGACY_BOT_DEFAULTS = {
+    "BredoDemotivatorMinWordSize": "3",
+    "BredoDemotivatorMaxWordSize": "8",
+    "BredoDemotivatorSecondLineMinWordSize": "3",
+    "BredoDemotivatorSecondLineMaxWordSize": "12",
+    "BredoMessageMinWordSize": "5",
+    "BredoMessageMaxWordSize": "30",
+    "BredoBugurtMessageMinWordSize": "8",
+    "BredoBugurtMessageMaxWordSize": "40",
+    "BredoBugurtMessageMinWordsPerLine": "2",
+    "BredoBugurtMessageMaxWordsPerLine": "8",
+    "BredoBugurtMessageMinLines": "2",
+    "BredoBugurtMessageMaxLines": "8",
+}
 
 
 @dataclass(frozen=True)
@@ -76,3 +92,33 @@ def load_settings() -> Settings:
             "BREDO_QUOTE_QUOTE_TEXT_FONT", "fonts/OpenSans-Italic.ttf"
         ),
     )
+
+
+def load_legacy_config() -> ConfigParser:
+    settings = load_settings()
+    legacy_config = ConfigParser()
+    legacy_config["BOT"] = {
+        "Token": settings.bot_token,
+        "BredoGenerationProbability": str(settings.bredo_generation_probability),
+        "BredoMessageVoiceoverProbability": str(settings.bredo_message_voiceover_probability),
+        "BredoDemotivatorWatermark": settings.bredo_demotivator_watermark,
+        "BredoDemotivatorTextFont": settings.bredo_demotivator_text_font,
+        "BredoQuoteHeadlineText": settings.bredo_quote_headline_text,
+        "BredoQuoteHeadlineTextFont": settings.bredo_quote_headline_text_font,
+        "BredoQuoteAuthorNameTextFont": settings.bredo_quote_author_name_text_font,
+        "BredoQuoteQuoteTextFont": settings.bredo_quote_quote_text_font,
+        **{
+            key: os.getenv(_legacy_key_to_env_name(key), default)
+            for key, default in LEGACY_BOT_DEFAULTS.items()
+        },
+    }
+    return legacy_config
+
+
+def _legacy_key_to_env_name(key: str) -> str:
+    env_name = []
+    for index, character in enumerate(key):
+        if index > 0 and character.isupper() and not key[index - 1].isupper():
+            env_name.append("_")
+        env_name.append(character.upper())
+    return "".join(env_name)
