@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS messages (
     chat_id BIGINT NOT NULL REFERENCES chats(chat_id) ON DELETE CASCADE,
     telegram_message_id BIGINT,
     user_id BIGINT,
-    text TEXT,
-    normalized_text TEXT,
+    text TEXT NOT NULL,
+    normalized_text TEXT NOT NULL,
     source TEXT NOT NULL,
     forwarded_from TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -51,13 +51,15 @@ CREATE TABLE IF NOT EXISTS imports (
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id
     ON messages(chat_id);
 
+CREATE INDEX IF NOT EXISTS idx_messages_chat_created_at
+    ON messages(chat_id, created_at);
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_chat_message_id
     ON messages(chat_id, telegram_message_id)
     WHERE telegram_message_id IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_chat_normalized_text
-    ON messages(chat_id, normalized_text)
-    WHERE normalized_text IS NOT NULL;
+    ON messages(chat_id, normalized_text);
 
 CREATE INDEX IF NOT EXISTS idx_photos_chat_id
     ON photos(chat_id);

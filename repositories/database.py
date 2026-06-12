@@ -12,6 +12,9 @@ class Database:
         self._pool: asyncpg.Pool | None = None
 
     async def connect(self) -> None:
+        if self._pool is not None:
+            return
+
         self._pool = await asyncpg.create_pool(self.database_url)
 
     async def close(self) -> None:
