@@ -1,20 +1,32 @@
+import inspect
+
 from repositories.chats import ChatRepository
 from repositories.messages import MessageRepository
 
 
 class FakeConnection:
-    def __init__(self, *, fetch_rows=None, fetchrow_row=None, fetchval_value=None):
+    def __init__(
+        self,
+        *,
+        execute_results=None,
+        fetch_rows=None,
+        fetchrow_row=None,
+        fetchval_value=None,
+    ):
         self.execute_calls = []
         self.fetch_calls = []
         self.fetchrow_calls = []
         self.fetchval_calls = []
+        self._execute_results = list(execute_results or [])
         self._fetch_rows = fetch_rows or []
         self._fetchrow_row = fetchrow_row
         self._fetchval_value = fetchval_value
 
     async def execute(self, query, *args):
         self.execute_calls.append((query, args))
-        return "EXECUTE"
+        if self._execute_results:
+            return self._execute_results.pop(0)
+        return "INSERT 0 1"
 
     async def fetch(self, query, *args):
         self.fetch_calls.append((query, args))
@@ -33,7 +45,12 @@ async def test_chat_repository_upsert_chat_inserts_chat_without_overwriting_defa
     connection = FakeConnection()
     repository = ChatRepository(connection)
 
-    await repository.upsert_chat(100, "test", "supergroup", "absurd")
+    await repository.upsert_chat(
+        chat_id=100,
+        title="test",
+        chat_type="supergroup",
+        default_mode="absurd",
+    )
 
     query, args = connection.execute_calls[0]
     assert "INSERT INTO chats" in query
@@ -73,13 +90,13 @@ async def test_message_repository_insert_message_ignores_conflicts():
     repository = MessageRepository(connection)
 
     await repository.insert_message(
-        100,
-        10,
-        55,
-        "сырный автобус",
-        "сырный автобус",
-        "message",
-        None,
+        chat_id=100,
+        telegram_message_id=10,
+        user_id=55,
+        text="сырный автобус",
+        normalized_text="сырный автобус",
+        source="message",
+        forwarded_from=None,
     )
 
     query, args = connection.execute_calls[0]
@@ -89,13 +106,17 @@ async def test_message_repository_insert_message_ignores_conflicts():
 
 
 async def test_message_repository_insert_messages_bulk_returns_accepted_count():
-    connection = FakeConnection()
+    connection = FakeConnection(execute_results=["INSERT 0 1", "INSERT 0 0", "INSERT 0 1"])
     repository = MessageRepository(connection)
 
-    count = await repository.insert_messages_bulk(100, ["one", "two"], "import")
+    count = await repository.insert_messages_bulk(
+        chat_id=100,
+        messages=["one", "two", "three"],
+        source="import",
+    )
 
     assert count == 2
-    assert len(connection.execute_calls) == 2
+    assert len(connection.execute_calls) == 3
     for query, args in connection.execute_calls:
         assert "INSERT INTO messages" in query
         assert "ON CONFLICT DO NOTHING" in query
@@ -109,7 +130,7 @@ async def test_message_repository_insert_photo_records_file_id():
     connection = FakeConnection()
     repository = MessageRepository(connection)
 
-    await repository.insert_photo(100, 10, "photo-file")
+    await repository.insert_photo(chat_id=100, telegram_message_id=10, file_id="photo-file")
 
     query, args = connection.execute_calls[0]
     assert "INSERT INTO photos" in query
@@ -122,7 +143,7 @@ async def test_message_repository_get_messages_returns_normalized_text_strings()
     )
     repository = MessageRepository(connection)
 
-    messages = await repository.get_messages(100)
+    messages = await repository.get_messages(chat_id=100)
 
     query, args = connection.fetch_calls[0]
     assert messages == ["first", "second"]
@@ -132,16 +153,25 @@ async def test_message_repository_get_messages_returns_normalized_text_strings()
 
 
 async def test_message_repository_get_random_photo_returns_file_id():
-    connection = FakeConnection(fetchval_value="photo-file")
+    connection = FakeConnection(fetchrow_row={"file_id": "photo-file"})
     repository = MessageRepository(connection)
 
-    file_id = await repository.get_random_photo(100)
+    file_id = await repository.get_random_photo(chat_id=100)
 
-    query, args = connection.fetchval_calls[0]
+    query, args = connection.fetchrow_calls[0]
     assert file_id == "photo-file"
     assert "SELECT file_id" in query
     assert "ORDER BY RANDOM()" in query
     assert args == (100,)
+
+
+async def test_message_repository_get_random_photo_returns_none_without_row():
+    connection = FakeConnection(fetchrow_row=None)
+    repository = MessageRepository(connection)
+
+    file_id = await repository.get_random_photo(chat_id=100)
+
+    assert file_id is None
 
 
 async def test_message_repository_get_stats_returns_count_dict():
@@ -151,15 +181,44 @@ async def test_message_repository_get_stats_returns_count_dict():
             "message": 2,
             "forwarded": 1,
             "import": 2,
-            "photos": 3,
-        }
+        },
+        fetchval_value=3,
     )
     repository = MessageRepository(connection)
 
-    stats = await repository.get_stats(100)
+    stats = await repository.get_stats(chat_id=100)
 
-    query, args = connection.fetchrow_calls[0]
+    message_query, message_args = connection.fetchrow_calls[0]
+    photo_query, photo_args = connection.fetchval_calls[0]
     assert stats == {"total": 5, "message": 2, "forwarded": 1, "import": 2, "photos": 3}
-    assert "COUNT" in query
-    assert "photos" in query
-    assert args == (100,)
+    assert "COUNT(*)::int AS total" in message_query
+    assert "FILTER (WHERE source = 'message')" in message_query
+    assert "photos" not in message_query
+    assert "FROM photos" in photo_query
+    assert message_args == (100,)
+    assert photo_args == (100,)
+
+
+async def test_message_repository_get_stats_returns_zero_fallbacks():
+    connection = FakeConnection(fetchrow_row=None, fetchval_value=None)
+    repository = MessageRepository(connection)
+
+    stats = await repository.get_stats(chat_id=100)
+
+    assert stats == {"total": 0, "message": 0, "forwarded": 0, "import": 0, "photos": 0}
+
+
+def test_repository_public_write_and_read_methods_use_keyword_only_parameters():
+    methods = [
+        ChatRepository.upsert_chat,
+        MessageRepository.insert_message,
+        MessageRepository.insert_messages_bulk,
+        MessageRepository.insert_photo,
+        MessageRepository.get_messages,
+        MessageRepository.get_random_photo,
+        MessageRepository.get_stats,
+    ]
+
+    for method in methods:
+        parameters = list(inspect.signature(method).parameters.values())[1:]
+        assert all(parameter.kind is inspect.Parameter.KEYWORD_ONLY for parameter in parameters)

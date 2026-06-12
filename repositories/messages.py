@@ -10,6 +10,7 @@ class MessageRepository:
 
     async def insert_message(
         self,
+        *,
         chat_id: int,
         telegram_message_id: int | None,
         user_id: int | None,
@@ -43,6 +44,7 @@ class MessageRepository:
 
     async def insert_messages_bulk(
         self,
+        *,
         chat_id: int,
         messages: Sequence[str],
         source: str,
@@ -71,12 +73,13 @@ class MessageRepository:
                 source,
                 None,
             )
-            if result != "INSERT 0 0":
+            if result == "INSERT 0 1":
                 accepted_count += 1
         return accepted_count
 
     async def insert_photo(
         self,
+        *,
         chat_id: int,
         telegram_message_id: int | None,
         file_id: str,
@@ -91,7 +94,7 @@ class MessageRepository:
             file_id,
         )
 
-    async def get_messages(self, chat_id: int) -> list[str]:
+    async def get_messages(self, *, chat_id: int) -> list[str]:
         rows = await self.connection.fetch(
             """
             SELECT normalized_text
@@ -103,8 +106,8 @@ class MessageRepository:
         )
         return [row["normalized_text"] for row in rows]
 
-    async def get_random_photo(self, chat_id: int) -> str | None:
-        return await self.connection.fetchval(
+    async def get_random_photo(self, *, chat_id: int) -> str | None:
+        row = await self.connection.fetchrow(
             """
             SELECT file_id
             FROM photos
@@ -114,29 +117,35 @@ class MessageRepository:
             """,
             chat_id,
         )
+        if row is None:
+            return None
+        return row["file_id"]
 
-    async def get_stats(self, chat_id: int) -> dict[str, int]:
+    async def get_stats(self, *, chat_id: int) -> dict[str, int]:
         row = await self.connection.fetchrow(
             """
             SELECT
-                COUNT(*) AS total,
-                COUNT(*) FILTER (WHERE source = 'message') AS message,
-                COUNT(*) FILTER (WHERE source = 'forwarded') AS forwarded,
-                COUNT(*) FILTER (WHERE source = 'import') AS import,
-                (
-                    SELECT COUNT(*)
-                    FROM photos
-                    WHERE photos.chat_id = $1
-                ) AS photos
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE source = 'message')::int AS message,
+                COUNT(*) FILTER (WHERE source = 'forwarded')::int AS forwarded,
+                COUNT(*) FILTER (WHERE source = 'import')::int AS import
             FROM messages
             WHERE chat_id = $1
             """,
             chat_id,
         )
+        photos = await self.connection.fetchval(
+            """
+            SELECT COUNT(*)::int
+            FROM photos
+            WHERE chat_id = $1
+            """,
+            chat_id,
+        )
         return {
-            "total": row["total"],
-            "message": row["message"],
-            "forwarded": row["forwarded"],
-            "import": row["import"],
-            "photos": row["photos"],
+            "total": row["total"] if row else 0,
+            "message": row["message"] if row else 0,
+            "forwarded": row["forwarded"] if row else 0,
+            "import": row["import"] if row else 0,
+            "photos": photos or 0,
         }

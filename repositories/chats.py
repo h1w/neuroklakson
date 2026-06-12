@@ -9,6 +9,7 @@ class ChatRepository:
 
     async def upsert_chat(
         self,
+        *,
         chat_id: int,
         title: str | None,
         chat_type: str,
