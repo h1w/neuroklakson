@@ -5,6 +5,14 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from utils import normalizeStringForDemotivator
 
 
+def _text_size(drawer, text, font):
+    if "\n" in text:
+        bbox = drawer.multiline_textbbox((0, 0), text, font=font)
+    else:
+        bbox = drawer.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+
 # Рисуем демотиватор:
 async def generateDemotivator(image, top_text, bottom_text, watermark=None, font='fonts/font.ttf') -> Image:
     font_color='white'
@@ -48,23 +56,23 @@ async def generateDemotivator(image, top_text, bottom_text, watermark=None, font
 
     """
     font_1 = ImageFont.truetype(font=font_name, size=top_size, encoding='UTF-8')
-    text_width = font_1.getsize(top_text)[0]
+    text_width = _text_size(drawer, top_text, font_1)[0]
 
     while text_width >= (width + 250) - 20:
         font_1 = ImageFont.truetype(font=font_name, size=top_size, encoding='UTF-8')
-        text_width = font_1.getsize(top_text)[0]
+        text_width = _text_size(drawer, top_text, font_1)[0]
         top_size -= 1
 
     font_2 = ImageFont.truetype(font=font_name, size=bottom_size, encoding='UTF-8')
-    text_width = font_2.getsize(bottom_text)[0]
+    text_width = _text_size(drawer, bottom_text, font_2)[0]
 
     while text_width >= (width + 250) - 20:
         font_2 = ImageFont.truetype(font=font_name, size=bottom_size, encoding='UTF-8')
-        text_width = font_2.getsize(bottom_text)[0]
+        text_width = _text_size(drawer, bottom_text, font_2)[0]
         bottom_size -= 1
 
-    size_1 = drawer.textsize(top_text, font=font_1)
-    size_2 = drawer.textsize(bottom_text, font=font_2)
+    size_1 = _text_size(drawer, top_text, font_1)
+    size_2 = _text_size(drawer, bottom_text, font_2)
 
     if arrange:
         drawer.text((((width + 250) - size_1[0]) / 2, ((height + 190) - size_1[1])),
@@ -84,7 +92,7 @@ async def generateDemotivator(image, top_text, bottom_text, watermark=None, font
         idraw.line((1000 - len(watermark) * 5, 817, 1008 + len(watermark) * 5, 817), fill=0, width=4)
 
         font_2 = ImageFont.truetype(font=font_name, size=20, encoding='UTF-8')
-        size_2 = idraw.textsize(watermark.lower(), font=font_2)
+        size_2 = _text_size(idraw, watermark.lower(), font_2)
         idraw.text((((width + 729) - size_2[0]) / 2, ((height - 192) - size_2[1])),
                     watermark.lower(), font=font_2)
 
@@ -115,7 +123,7 @@ async def generateQuote(author_profile_pic, author_name, quote_text, headline_te
     font_2 = ImageFont.truetype(font=headline_text_font, size=headline_text_size, encoding='UTF-8')
     font_3 = ImageFont.truetype(font=author_name_font, size=author_name_size, encoding='UTF-8')
 
-    size_headline = drawer.textsize(headline_text, font=font_2)
+    size_headline = _text_size(drawer, headline_text, font_2)
 
     drawer.text((425, 120), f"{text[:-1]}", fill='white', font=font_1)
     drawer.text((425, 410), '© ' + author_name, fill='white', font=font_3)
@@ -138,10 +146,10 @@ async def generateQuote(author_profile_pic, author_name, quote_text, headline_te
     user_photo = Image.open(author_profile_pic).resize((true_width, true_height)).convert("RGBA")
     width, height = user_photo.size
     user_photo.crop(((width-height) / 2, 0, (width + height) / 2, height))
-    user_photo.resize((true_width, true_height), Image.ANTIALIAS)
+    user_photo.resize((true_width, true_height), Image.Resampling.LANCZOS)
     mask = Image.new('L', (true_width * 2, true_height * 2), 0)
     ImageDraw.Draw(mask).rectangle((0, 0) + mask.size, fill=255)
-    user_photo.putalpha(mask.resize((true_width, true_height), Image.ANTIALIAS))
+    user_photo.putalpha(mask.resize((true_width, true_height), Image.Resampling.LANCZOS))
     user_img.paste(user_photo, (50, 120), mask=user_photo)
 
     return user_img
