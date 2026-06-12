@@ -21,15 +21,19 @@ Edit `.env` and replace `BOT_TOKEN` with your real token.
 
 ## Run With Docker Compose
 
-Build and start the Compose services:
+For the first run on a fresh database, start Postgres without starting the bot:
 
 ```sh
-docker compose up --build
+docker compose up -d postgres
 ```
 
-On a fresh database, apply migrations before using the bot. The bot should not start polling or handle messages until the schema exists.
+Build the bot image used by the migration container:
 
-If the bot is already running, stop it after Postgres has started, then apply migrations from the Compose environment:
+```sh
+docker compose build bot
+```
+
+Apply database migrations before the bot starts polling or handles messages:
 
 ```sh
 docker compose run --rm bot uv run python migrations/apply.py
@@ -41,7 +45,13 @@ If you are already inside the bot container, run the same migration script direc
 uv run python migrations/apply.py
 ```
 
-After migrations complete, start or restart the bot with Docker Compose:
+After migrations complete, start the bot:
+
+```sh
+docker compose up -d bot
+```
+
+For later runs after migrations have already been applied, you can rebuild and start the full stack:
 
 ```sh
 docker compose up --build
