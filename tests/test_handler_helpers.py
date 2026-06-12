@@ -5,6 +5,7 @@ import pytest
 
 import handlers.common as common
 import handlers.generation as generation
+import handlers.legacy as legacy
 from handlers.generation import parse_mode_argument
 from handlers.learning import _learn_imported_text, message_learning_source, select_history_document
 
@@ -109,9 +110,15 @@ async def test_generate_demotivator_uses_default_mode_and_random_photo(monkeypat
             assert isinstance(message_repository, FakeMessageRepository)
             assert isinstance(chat_repository, FakeChatRepository)
 
-        async def generate_message(self, *, chat_id, mode_override, max_words):
+        async def generate_message(self, *, chat_id, mode_override, min_words=None, target_words=None, max_words):
             calls["generated"].append(
-                {"chat_id": chat_id, "mode_override": mode_override, "max_words": max_words}
+                {
+                    "chat_id": chat_id,
+                    "mode_override": mode_override,
+                    "min_words": min_words,
+                    "target_words": target_words,
+                    "max_words": max_words,
+                }
             )
             return "first line" if max_words == 8 else "second line"
 
@@ -152,8 +159,8 @@ async def test_generate_demotivator_uses_default_mode_and_random_photo(monkeypat
     assert calls["random_photo_chat_id"] == 100
     assert calls["download_file_id"] == "photo-file-id"
     assert calls["generated"] == [
-        {"chat_id": 100, "mode_override": None, "max_words": 8},
-        {"chat_id": 100, "mode_override": None, "max_words": 12},
+        {"chat_id": 100, "mode_override": None, "min_words": 2, "target_words": 5, "max_words": 8},
+        {"chat_id": 100, "mode_override": None, "min_words": 3, "target_words": 8, "max_words": 12},
     ]
     assert calls["image_bytes"] == b"photo-bytes"
     assert calls["demotivator_args"] == ("first line", "second line", "wm", "font.ttf")
@@ -175,7 +182,7 @@ async def test_generate_demotivator_passes_mode_override(monkeypatch):
         def __init__(self, message_repository, chat_repository):
             pass
 
-        async def generate_message(self, *, chat_id, mode_override, max_words):
+        async def generate_message(self, *, chat_id, mode_override, min_words=None, target_words=None, max_words):
             mode_overrides.append(mode_override)
             return None
 
@@ -223,7 +230,7 @@ async def test_generate_demotivator_downloads_external_photo(monkeypatch):
         def __init__(self, message_repository, chat_repository):
             pass
 
-        async def generate_message(self, *, chat_id, mode_override, max_words):
+        async def generate_message(self, *, chat_id, mode_override, min_words=None, target_words=None, max_words):
             return "first line" if max_words == 8 else "second line"
 
     class FakeImage:
@@ -326,6 +333,76 @@ def test_runtime_code_does_not_use_bot_mapping_access():
 
 def test_help_text_does_not_document_manual_forward_learning_command():
     assert "/learn_forwarded" not in common.HELP_TEXT
+
+
+def test_help_text_documents_all_runtime_commands():
+    for command in [
+        "/start",
+        "/help",
+        "/h",
+        "/generatemessage",
+        "/genmsg",
+        "/gm",
+        "/demotivatorgeneration",
+        "/demgen",
+        "/d",
+        "/generatebugurt",
+        "/genbug",
+        "/b",
+        "/createdemotivator",
+        "/crdem",
+        "/cd",
+        "/createquote",
+        "/cq",
+        "/q",
+        "/learn_history",
+        "/readtread2ch",
+        "/rt2ch",
+        "/set_mode",
+        "/stats",
+        "/s",
+        "/voiceover",
+        "/v",
+    ]:
+        assert command in common.HELP_TEXT
+
+
+async def test_generate_bugurt_generates_separate_length_aware_lines(monkeypatch):
+    calls = []
+
+    async def fake_chat_messages_text(database, chat_id):
+        assert chat_id == 100
+        return "кабачок спорит с автобусом\nчайник ругает чубайса"
+
+    async def fake_make_short_sentence(text, *, min_words=None, target_words=None, max_words=100):
+        calls.append({"min_words": min_words, "target_words": target_words, "max_words": max_words})
+        return f"line {len(calls)}"
+
+    monkeypatch.setattr("handlers.legacy._chat_messages_text", fake_chat_messages_text)
+    monkeypatch.setattr("handlers.legacy.makeShortSentence", fake_make_short_sentence)
+    monkeypatch.setattr("handlers.legacy.random.randint", lambda left, right: left)
+
+    message = SimpleNamespace(chat=SimpleNamespace(id=100), answers=[])
+
+    async def answer(text):
+        message.answers.append(text)
+
+    message.answer = answer
+
+    settings = SimpleNamespace(
+        bredo_bugurt_message_min_lines=2,
+        bredo_bugurt_message_max_lines=6,
+        bredo_bugurt_message_min_words_per_line=2,
+        bredo_bugurt_message_max_words_per_line=9,
+    )
+
+    await legacy.generate_bugurt_handler(message, FakeDatabase(object()), settings)
+
+    assert calls == [
+        {"min_words": 2, "target_words": 6, "max_words": 9},
+        {"min_words": 2, "target_words": 6, "max_words": 9},
+    ]
+    assert message.answers == ["line 1\n@\nline 2"]
 
 
 def test_select_history_document_prefers_attached_document_over_caption_text():

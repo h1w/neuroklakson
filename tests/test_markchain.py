@@ -6,10 +6,10 @@ import pytest
 import markchain
 
 MESSAGES = [
-    "alpha beta gamma delta epsilon zeta",
-    "beta gamma delta eta theta iota",
-    "gamma delta epsilon kappa lambda mu",
-    "delta epsilon zeta nu xi omicron",
+    "кабачок спорит с автобусом около подъезда",
+    "автобус спорит с чайником около модема",
+    "чайник ругает кабачок через облако",
+    "облако кусает автобус около подъезда",
 ]
 
 
@@ -38,9 +38,179 @@ def test_generate_markov_text_supports_modes_and_respects_max_words(mode):
     assert 1 <= len(result.split()) <= 5
 
 
+@pytest.mark.parametrize("mode", ["normal", "absurd", "chaos"])
+def test_generate_markov_text_avoids_garbage_endings_after_reranking(mode):
+    messages = [
+        "кабачок спорит с автобусом и",
+        "нейросеть ест пельмени в",
+        "батя чинит чайник про облако",
+        "автобус ругает кабачок через модем",
+        "облако кусает пельмени около подъезда",
+    ]
+
+    result = markchain.generate_markov_text(messages, mode=mode, max_words=8, rng=random.Random(3))
+
+    assert result is not None
+    assert len(result.split()) <= 8
+    assert result.split()[-1].lower() not in markchain.DANGLING_END_WORDS
+
+
+def test_generate_markov_text_honors_min_target_and_max_words():
+    messages = [
+        "кабачок спорит с автобусом около подъезда",
+        "автобус ругает чайник около модема",
+        "чайник кусает кабачок около очка",
+        "БЛЯДЬ ЧУБАЙС залез в автобус",
+        "залупа спорит с вагиной у подъезда",
+    ]
+
+    result = markchain.generate_markov_text(
+        messages,
+        mode="chaos",
+        min_words=5,
+        target_words=10,
+        max_words=15,
+        rng=random.Random(2),
+    )
+
+    assert result is not None
+    assert 5 <= len(result.split()) <= 15
+
+
+def test_candidate_word_limit_uses_explicit_target_words():
+    assert markchain._candidate_word_limit(
+        markchain.MODE_SETTINGS["chaos"],
+        min_words=5,
+        target_words=14,
+        max_words=30,
+    ) == 14
+
+
 def test_generate_markov_text_rejects_invalid_mode():
     with pytest.raises(ValueError, match="mode"):
         markchain.generate_markov_text(MESSAGES, mode="quiet", rng=random.Random(1))
+
+
+def test_is_garbage_candidate_rejects_low_content_text():
+    frequencies = markchain._word_frequencies(MESSAGES)
+
+    assert markchain._is_garbage_candidate("ну и это не в", frequencies)
+    assert markchain._is_garbage_candidate("кот кот кот кот", frequencies)
+    assert markchain._is_garbage_candidate("кабачок tlyjrxbagyafamfyyjiqzdropryguy автобус", frequencies)
+    assert markchain._is_garbage_candidate("кабачок my mind автобус", frequencies)
+    assert markchain._is_garbage_candidate(">3 кабачок спорит с автобусом", frequencies)
+    assert markchain._is_garbage_candidate(">Бровсек кабачок спорит с автобусом", frequencies)
+    assert markchain._is_garbage_candidate("кабачок матн нарх автобус", frequencies)
+    assert markchain._is_garbage_candidate("instructions кабачок спорит с автобусом", frequencies)
+    assert not markchain._is_garbage_candidate("кабачок спорит с автобусом", frequencies)
+
+
+def test_tokenize_messages_filters_source_noise_before_chain_building():
+    tokenized = markchain._tokenize_messages(
+        [
+            "кабачок спорит с автобусом около подъезда",
+            "tlyjrxbagyafamfyyjiqzdropryguy dqpxtmqremiiexlausjfkgovatvxkh",
+            "instructions system prompt кабачок",
+            "кабачок my mind спорит с автобусом",
+            ">3 кабачок спорит с автобусом",
+            ">Бровсек кабачок спорит с автобусом",
+            "аммо хеле ӯро доштан хостам кабачок",
+            "vpn работает потому что кабачок устал",
+        ]
+    )
+
+    assert tokenized == [
+        ["кабачок", "спорит", "с", "автобусом", "около", "подъезда"],
+        ["vpn", "работает", "потому", "что", "кабачок", "устал"],
+    ]
+
+
+def test_score_candidate_prefers_absurd_specific_varied_text():
+    corpus = [
+        "кабачок спорит с автобусом около подъезда",
+        "нейросеть ест пельмени через модем",
+        "батя чинит чайник и ругает облако",
+    ]
+    frequencies = markchain._word_frequencies(corpus)
+
+    dull = markchain._score_candidate("ну это просто нормально", frequencies, mode="chaos")
+    absurd = markchain._score_candidate("нейросеть чинит пельмени через облако", frequencies, mode="chaos")
+
+    assert absurd > dull
+
+
+def test_obscene_caps_and_dark_words_are_not_garbage():
+    frequencies = markchain._word_frequencies(
+        [
+            "БЛЯДЬ ПИЗДЕЦ ЧУБАЙС ОЧКО",
+            "ЗАЛУПА ВАГИНА ПИЗДА ПОВЕСИЛСЯ",
+            "кабачок спорит с автобусом",
+        ]
+    )
+
+    assert not markchain._is_garbage_candidate("БЛЯДЬ ПИЗДЕЦ ЧУБАЙС ОЧКО", frequencies)
+    assert not markchain._is_garbage_candidate("ЗАЛУПА ВАГИНА ПИЗДА ПОВЕСИЛСЯ", frequencies)
+
+
+def test_score_candidate_prefers_provocative_absurd_punchline():
+    corpus = [
+        "БЛЯДЬ ЧУБАЙС залез в очко автобуса",
+        "залупа спорит с вагиной у подъезда",
+        "пизда повесился кабачок и чайник",
+        "регулирование социальной инфраструктуры продолжается",
+    ]
+    frequencies = markchain._word_frequencies(corpus)
+
+    boring = markchain._score_candidate(
+        "регулирование социальной инфраструктуры продолжается",
+        frequencies,
+        mode="chaos",
+    )
+    funny = markchain._score_candidate(
+        "БЛЯДЬ ЧУБАЙС залез в очко автобуса",
+        frequencies,
+        mode="chaos",
+    )
+
+    assert funny > boring
+
+
+def test_chaos_profile_prefers_punchier_candidates_than_normal():
+    assert markchain.MODE_SETTINGS["chaos"].target_words < markchain.MODE_SETTINGS["normal"].target_words
+    assert markchain.MODE_SETTINGS["chaos"].provocation_weight > markchain.MODE_SETTINGS["normal"].provocation_weight
+
+
+def test_effective_candidate_word_limit_caps_chaos_to_target_words():
+    assert markchain._candidate_word_limit(markchain.MODE_SETTINGS["chaos"], max_words=30) == 11
+    assert markchain._candidate_word_limit(markchain.MODE_SETTINGS["chaos"], max_words=7) == 7
+
+
+def test_score_candidate_penalizes_long_latin_noise():
+    corpus = ["кабачок спорит с автобусом", "нейросеть ест пельмени"]
+    frequencies = markchain._word_frequencies(corpus)
+
+    clean = markchain._score_candidate("кабачок спорит с автобусом", frequencies, mode="chaos")
+    noisy = markchain._score_candidate(
+        "кабачок tlyjrxbagyafamfyyjiqzdropryguy автобус",
+        frequencies,
+        mode="chaos",
+    )
+
+    assert clean > noisy
+
+
+def test_generate_markov_text_cleans_after_max_word_truncation(monkeypatch):
+    messages = [
+        "кабачок спорит с автобусом около подъезда",
+        "автобус спорит с чайником около модема",
+        "чайник ругает кабачок через облако",
+    ]
+
+    monkeypatch.setattr(markchain, "_generate_candidate", lambda *args, **kwargs: "кабачок спорит с автобусом в")
+
+    result = markchain.generate_markov_text(messages, mode="chaos", max_words=5, rng=random.Random(1))
+
+    assert result == "кабачок спорит с автобусом"
 
 
 async def test_make_short_sentence_compatibility_wrapper_respects_max_words():
@@ -48,6 +218,18 @@ async def test_make_short_sentence_compatibility_wrapper_respects_max_words():
 
     assert result is not None
     assert len(result.split()) <= 4
+
+
+async def test_make_short_sentence_supports_length_range():
+    result = await markchain.makeShortSentence(
+        "\n".join(MESSAGES),
+        min_words=3,
+        target_words=5,
+        max_words=7,
+    )
+
+    assert result is not None
+    assert 3 <= len(result.split()) <= 7
 
 
 async def test_make_short_sentence_preserves_none_for_insufficient_corpus():

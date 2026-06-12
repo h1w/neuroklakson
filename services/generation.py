@@ -35,6 +35,8 @@ class GenerationService:
         *,
         chat_id: int,
         mode_override: str | None,
+        min_words: int | None = None,
+        target_words: int | None = None,
         max_words: int,
     ) -> str | None:
         mode = await resolve_generation_mode(
@@ -42,5 +44,11 @@ class GenerationService:
             chat_id=chat_id,
             override=mode_override,
         )
-        messages = await self.message_repository.get_messages(chat_id=chat_id)
-        return generate_markov_text(messages, mode=mode, max_words=max_words)
+        messages = await self.message_repository.get_generation_messages(chat_id=chat_id)
+        return generate_markov_text(
+            messages,
+            mode=mode,
+            min_words=min_words,
+            target_words=target_words,
+            max_words=max_words,
+        )

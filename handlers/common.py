@@ -15,14 +15,28 @@ router = Router()
 
 ADMIN_ONLY_MESSAGE = "Эта команда только для админов чата"
 HELP_TEXT = """Команды бота:
-/start - пошел нахуй
-/help, /h - помощь по командам
+/start - поприветствовать бота
+/help, /h - показать эту справку
+
+Генерация:
 /generatemessage, /genmsg, /gm [normal|absurd|chaos] - сгенерировать сообщение
-/demotivatorgeneration, /demgen, /d [normal|absurd|chaos] - сгенерировать демотиватор
-/set_mode <normal|absurd|chaos> - установить режим генерации по умолчанию
+/demotivatorgeneration, /demgen, /d [normal|absurd|chaos] - сгенерировать демотиватор из случайной картинки
+/generatebugurt, /genbug, /b - сгенерировать бугурт несколькими строками
+
+Картинки и цитаты:
+/createdemotivator, /crdem, /cd <верх>|<низ> - демотиватор из фото в сообщении или reply
+/createquote, /cq, /q - цитата из сообщения, на которое ответили
+
+Обучение и импорт:
+/learn_history - импортировать историю из приложенного txt или reply на txt
+/readtread2ch, /rt2ch <thread_or_board_url> - импортировать тред или доску 2ch
+
+Настройки и сервис:
+/set_mode <normal|absurd|chaos> - установить режим генерации по умолчанию, только админы
 /stats, /s - статистика чата
-/learn_history - импортировать историю из ответа или txt-документа
-/readtread2ch, /rt2ch <url> - импортировать тред 2ch
+/voiceover, /v <text> - озвучить текст или reply-сообщение
+
+Режимы: normal - связнее, absurd - страннее, chaos - максимально ебануто.
 """
 
 

@@ -188,6 +188,23 @@ class MessageRepository:
         )
         return [row["normalized_text"] for row in rows]
 
+    async def get_generation_messages(self, *, chat_id: int) -> list[str]:
+        rows = await self.connection.fetch(
+            """
+            SELECT normalized_text, source
+            FROM messages
+            WHERE chat_id = $1
+            ORDER BY created_at
+            """,
+            chat_id,
+        )
+        weights = {"message": 3, "forwarded": 2, "import": 1}
+        messages: list[str] = []
+        for row in rows:
+            weight = weights.get(row["source"], 1)
+            messages.extend([row["normalized_text"]] * weight)
+        return messages
+
     async def get_random_message(self, *, chat_id: int) -> str | None:
         row = await self.connection.fetchrow(
             """

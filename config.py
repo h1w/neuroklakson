@@ -31,7 +31,7 @@ class Settings:
     bredo_message_voiceover_probability: int = 1
     bredo_demotivator_watermark: str = "neuroklakson"
     bredo_demotivator_text_font: str = "fonts/OpenSans-Bold.ttf"
-    bredo_quote_headline_text: str = "Great minds of Telegram"
+    bredo_quote_headline_text: str = "Цитаты ебланойдов"
     bredo_quote_headline_text_font: str = "fonts/OpenSans-Bold.ttf"
     bredo_quote_author_name_text_font: str = "fonts/OpenSans-Regular.ttf"
     bredo_quote_quote_text_font: str = "fonts/OpenSans-Italic.ttf"
@@ -92,7 +92,7 @@ def load_settings() -> Settings:
             "BREDO_DEMOTIVATOR_TEXT_FONT", "fonts/OpenSans-Bold.ttf"
         ),
         bredo_quote_headline_text=os.getenv(
-            "BREDO_QUOTE_HEADLINE_TEXT", "Great minds of Telegram"
+            "BREDO_QUOTE_HEADLINE_TEXT", "Цитаты ебланойдов"
         ),
         bredo_quote_headline_text_font=os.getenv(
             "BREDO_QUOTE_HEADLINE_TEXT_FONT", "fonts/OpenSans-Bold.ttf"

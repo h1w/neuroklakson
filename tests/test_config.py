@@ -66,7 +66,7 @@ def test_load_legacy_config_from_environment(monkeypatch):
     assert legacy_config["BOT"]["BredoBugurtMessageMaxLines"] == "8"
     assert legacy_config["BOT"]["BredoDemotivatorWatermark"] == "neuroklakson"
     assert legacy_config["BOT"]["BredoDemotivatorTextFont"] == "fonts/OpenSans-Bold.ttf"
-    assert legacy_config["BOT"]["BredoQuoteHeadlineText"] == "Great minds of Telegram"
+    assert legacy_config["BOT"]["BredoQuoteHeadlineText"] == "Цитаты ебланойдов"
     assert legacy_config["BOT"]["BredoQuoteHeadlineTextFont"] == "fonts/OpenSans-Bold.ttf"
     assert legacy_config["BOT"]["BredoQuoteAuthorNameTextFont"] == "fonts/OpenSans-Regular.ttf"
     assert legacy_config["BOT"]["BredoQuoteQuoteTextFont"] == "fonts/OpenSans-Italic.ttf"

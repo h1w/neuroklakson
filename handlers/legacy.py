@@ -12,7 +12,7 @@ from demotivate import generateDemotivator, generateQuote
 from markchain import makeShortSentence
 from repositories.database import Database
 from repositories.messages import MessageRepository
-from utils import normalizeStringForDemotivator, splitStringIntoLines
+from utils import normalizeStringForDemotivator
 from voiceover import textVoiceover
 
 router = Router()
@@ -101,25 +101,29 @@ async def create_quote_handler(message: Message, settings: Settings) -> None:
 @router.message(Command("generatebugurt", "genbug", "b"))
 async def generate_bugurt_handler(message: Message, database: Database, settings: Settings) -> None:
     messages_text = await _chat_messages_text(database, message.chat.id)
-    generated_text = await makeShortSentence(
-        messages_text,
-        random.randint(
-            settings.bredo_bugurt_message_min_word_size,
-            settings.bredo_bugurt_message_max_word_size,
-        ),
-    )
-    if generated_text is None:
-        await message.answer(NEED_MORE_MATERIAL_MESSAGE)
-        return
-
-    normalized = await normalizeStringForDemotivator(generated_text)
-    lines = await splitStringIntoLines(
-        normalized,
-        settings.bredo_bugurt_message_min_words_per_line,
-        settings.bredo_bugurt_message_max_words_per_line,
+    line_count = random.randint(
         settings.bredo_bugurt_message_min_lines,
         settings.bredo_bugurt_message_max_lines,
     )
+    lines: list[str] = []
+    for _ in range(line_count):
+        line = await makeShortSentence(
+            messages_text,
+            min_words=settings.bredo_bugurt_message_min_words_per_line,
+            target_words=(
+                settings.bredo_bugurt_message_min_words_per_line
+                + settings.bredo_bugurt_message_max_words_per_line
+                + 1
+            )
+            // 2,
+            max_words=settings.bredo_bugurt_message_max_words_per_line,
+        )
+        if line is not None:
+            lines.append(await normalizeStringForDemotivator(line))
+
+    if not lines:
+        await message.answer(NEED_MORE_MATERIAL_MESSAGE)
+        return
     await message.answer("\n@\n".join(lines))
 
 

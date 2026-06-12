@@ -7,6 +7,37 @@ REPEATED_WORD_RE = re.compile(r"\b(?P<word>\w+)(?:\s+(?P=word))+\b", re.IGNORECA
 SPACE_BEFORE_PUNCTUATION_RE = re.compile(r"\s+([,.;:!?])")
 SPACE_AFTER_PUNCTUATION_RE = re.compile(r"([,.;:!?]+)(?=[^\s,.;:!?])")
 LONG_WORD_RE = re.compile(r"\w+")
+STANDALONE_AT_RE = re.compile(r"(?:^|\s)@(?!\w)(?=\s|$)")
+PROMPT_NOISE_RE = re.compile(r"\b(?:instructions?|prompt|system)\b", re.IGNORECASE)
+DANGLING_END_WORDS = {
+    "а",
+    "без",
+    "в",
+    "во",
+    "для",
+    "до",
+    "за",
+    "и",
+    "или",
+    "из",
+    "к",
+    "на",
+    "над",
+    "не",
+    "но",
+    "о",
+    "об",
+    "от",
+    "по",
+    "под",
+    "при",
+    "про",
+    "с",
+    "со",
+    "то",
+    "у",
+    "что",
+}
 
 
 def _trim_words(text: str, max_word_length: int) -> str:
@@ -37,6 +68,8 @@ def normalize_training_text(text: str | None, max_word_length: int = 32) -> str 
 
 
 def clean_generated_text(text: str, max_word_length: int = 32) -> str:
+    text = STANDALONE_AT_RE.sub(" ", text)
+    text = PROMPT_NOISE_RE.sub(" ", text)
     cleaned = CONTROL_RE.sub(" ", text)
     cleaned = " ".join(cleaned.split())
 
@@ -49,4 +82,8 @@ def clean_generated_text(text: str, max_word_length: int = 32) -> str:
     cleaned = SPACE_BEFORE_PUNCTUATION_RE.sub(r"\1", cleaned)
     cleaned = SPACE_AFTER_PUNCTUATION_RE.sub(r"\1 ", cleaned)
     cleaned = _trim_words(cleaned, max_word_length)
+    words = cleaned.split()
+    while words and words[-1].strip(",.;:!?").lower() in DANGLING_END_WORDS:
+        words.pop()
+    cleaned = " ".join(words)
     return cleaned.strip()

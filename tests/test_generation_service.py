@@ -17,9 +17,14 @@ class FakeMessages:
     def __init__(self, messages):
         self.messages = messages
         self.requests = []
+        self.generation_requests = []
 
     async def get_messages(self, *, chat_id):
         self.requests.append(chat_id)
+        return self.messages
+
+    async def get_generation_messages(self, *, chat_id):
+        self.generation_requests.append(chat_id)
         return self.messages
 
 
@@ -61,9 +66,9 @@ async def test_resolve_generation_mode_falls_back_to_absurd_for_invalid_chat_def
 async def test_generate_message_returns_text_within_max_words():
     messages = FakeMessages(
         [
-            "alpha beta gamma delta epsilon zeta",
-            "beta gamma delta epsilon zeta eta",
-            "gamma delta epsilon zeta eta theta",
+            "кабачок спорит с автобусом около подъезда",
+            "автобус ругает чайник около подъезда",
+            "чайник кусает кабачок около модема",
         ]
     )
     chats = FakeChats(default_mode="normal")
@@ -73,5 +78,6 @@ async def test_generate_message_returns_text_within_max_words():
 
     assert generated is not None
     assert len(generated.split()) <= 4
-    assert messages.requests == [100]
+    assert messages.generation_requests == [100]
+    assert messages.requests == []
     assert chats.requests == [100]

@@ -200,6 +200,31 @@ async def test_message_repository_get_messages_returns_normalized_text_strings()
     assert args == (100,)
 
 
+async def test_message_repository_get_generation_messages_weights_sources():
+    connection = FakeConnection(
+        fetch_rows=[
+            {"normalized_text": "живой кабачок", "source": "message"},
+            {"normalized_text": "форвард чайник", "source": "forwarded"},
+            {"normalized_text": "импорт автобус", "source": "import"},
+        ]
+    )
+    repository = MessageRepository(connection)
+
+    messages = await repository.get_generation_messages(chat_id=100)
+
+    query, args = connection.fetch_calls[0]
+    assert messages == [
+        "живой кабачок",
+        "живой кабачок",
+        "живой кабачок",
+        "форвард чайник",
+        "форвард чайник",
+        "импорт автобус",
+    ]
+    assert "SELECT normalized_text, source" in query
+    assert args == (100,)
+
+
 async def test_message_repository_get_random_photo_returns_file_id():
     connection = FakeConnection(fetchrow_row={"file_id": "photo-file"})
     repository = MessageRepository(connection)

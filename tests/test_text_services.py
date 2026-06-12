@@ -32,3 +32,20 @@ def test_clean_generated_text_preserves_repeated_punctuation_clusters():
 
 def test_clean_generated_text_spaces_after_dot_clusters_without_splitting_them():
     assert clean_generated_text("да...нет") == "да... нет"
+
+
+def test_clean_generated_text_trims_dangling_service_word_endings():
+    assert clean_generated_text("кабачок спорит с чайником и") == "кабачок спорит с чайником"
+    assert clean_generated_text("батя уехал в") == "батя уехал"
+
+
+def test_clean_generated_text_collapses_repeated_service_words():
+    assert clean_generated_text("ну ну ну кабачок это это база") == "ну кабачок это база"
+
+
+def test_clean_generated_text_removes_standalone_at_separators():
+    assert clean_generated_text("кабачок @ спорит @ с автобусом") == "кабачок спорит с автобусом"
+
+
+def test_clean_generated_text_removes_prompt_noise_tokens():
+    assert clean_generated_text("кофеин в глотку instructions") == "кофеин в глотку"

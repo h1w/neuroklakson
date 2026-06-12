@@ -17,6 +17,13 @@ from services.media import download_external_image
 router = Router()
 
 NEED_MORE_MATERIAL_MESSAGE = "Я ещё очень тупой, нужно немного подождать"
+MESSAGE_SHAPES = {
+    "normal": {"min_words": 10, "target_words": 20, "max_words": 33},
+    "absurd": {"min_words": 7, "target_words": 14, "max_words": 22},
+    "chaos": {"min_words": 5, "target_words": 10, "max_words": 15},
+}
+DEMOTIVATOR_TOP_SHAPE = {"min_words": 2, "target_words": 5, "max_words": 8}
+DEMOTIVATOR_BOTTOM_SHAPE = {"min_words": 3, "target_words": 8, "max_words": 12}
 
 
 def parse_mode_argument(text: str | None) -> str | None:
@@ -30,6 +37,10 @@ def parse_mode_argument(text: str | None) -> str | None:
 
     valid_modes = ", ".join(sorted(GENERATION_MODES))
     raise ValueError(f"mode must be one of: {valid_modes}")
+
+
+def generation_shape_for_mode(mode: str | None) -> dict[str, int]:
+    return MESSAGE_SHAPES.get(mode or "absurd", MESSAGE_SHAPES["absurd"])
 
 
 @router.message(Command("generatemessage", "genmsg", "gm"))
@@ -48,7 +59,7 @@ async def generate_message_handler(message: Message, database: Database) -> None
         generated_text = await service.generate_message(
             chat_id=message.chat.id,
             mode_override=mode,
-            max_words=30,
+            **generation_shape_for_mode(mode),
         )
 
     await message.answer(generated_text or NEED_MORE_MATERIAL_MESSAGE)
@@ -75,12 +86,12 @@ async def generate_demotivator_handler(
         first_line = await service.generate_message(
             chat_id=message.chat.id,
             mode_override=mode,
-            max_words=8,
+            **DEMOTIVATOR_TOP_SHAPE,
         )
         second_line = await service.generate_message(
             chat_id=message.chat.id,
             mode_override=mode,
-            max_words=12,
+            **DEMOTIVATOR_BOTTOM_SHAPE,
         )
         photo_source = await message_repository.get_random_photo_source(chat_id=message.chat.id)
 
