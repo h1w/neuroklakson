@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from services.text import normalize_training_text
+
+TrainingSource = Literal["message", "forwarded", "import"]
+VALID_SOURCES: set[str] = {"message", "forwarded", "import"}
 
 
 class LearningService:
@@ -16,9 +19,13 @@ class LearningService:
         telegram_message_id: int | None,
         user_id: int | None,
         text: str | None,
-        source: str,
+        source: TrainingSource,
         forwarded_from: str | None = None,
     ) -> bool:
+        if source not in VALID_SOURCES:
+            valid_sources = ", ".join(sorted(VALID_SOURCES))
+            raise ValueError(f"source must be one of: {valid_sources}")
+
         normalized_text = normalize_training_text(text)
         if normalized_text is None:
             return False

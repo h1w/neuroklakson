@@ -1,3 +1,5 @@
+import pytest
+
 from services.generation import GenerationService, resolve_generation_mode
 
 
@@ -39,10 +41,19 @@ async def test_resolve_generation_mode_uses_valid_chat_default():
     assert chats.requests == [100]
 
 
-async def test_resolve_generation_mode_falls_back_to_absurd():
+async def test_resolve_generation_mode_rejects_invalid_override():
     chats = FakeChats(default_mode="invalid")
 
-    mode = await resolve_generation_mode(chats, chat_id=100, override="invalid")
+    with pytest.raises(ValueError, match="mode"):
+        await resolve_generation_mode(chats, chat_id=100, override="invalid")
+
+    assert chats.requests == []
+
+
+async def test_resolve_generation_mode_falls_back_to_absurd_for_invalid_chat_default():
+    chats = FakeChats(default_mode="invalid")
+
+    mode = await resolve_generation_mode(chats, chat_id=100, override=None)
 
     assert mode == "absurd"
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import config
-from markchain import generate_markov_text
+from markchain import GenerationMode, generate_markov_text
 
 
 async def resolve_generation_mode(
@@ -11,13 +11,16 @@ async def resolve_generation_mode(
     *,
     chat_id: int,
     override: str | None,
-) -> str:
+) -> GenerationMode:
     if override in config.GENERATION_MODES:
-        return override
+        return cast(GenerationMode, override)
+    if override:
+        valid_modes = ", ".join(sorted(config.GENERATION_MODES))
+        raise ValueError(f"mode must be one of: {valid_modes}")
 
     default_mode = await chat_repository.get_default_mode(chat_id)
     if default_mode in config.GENERATION_MODES:
-        return default_mode
+        return cast(GenerationMode, default_mode)
 
     return "absurd"
 

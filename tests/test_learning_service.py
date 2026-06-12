@@ -1,3 +1,5 @@
+import pytest
+
 from services.learning import LearningService
 
 
@@ -52,6 +54,22 @@ async def test_learn_text_rejects_commands_without_saving():
     )
 
     assert learned is False
+    assert messages.saved == []
+
+
+async def test_learn_text_rejects_invalid_source_without_saving():
+    messages = FakeMessages()
+    service = LearningService(messages)
+
+    with pytest.raises(ValueError, match="source"):
+        await service.learn_text(
+            chat_id=100,
+            telegram_message_id=10,
+            user_id=55,
+            text="valid message text",
+            source="invalid",
+        )
+
     assert messages.saved == []
 
 
