@@ -9,8 +9,10 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 
+BOARD_RE = re.compile(r"^/(?P<board>[^/]+)/?$")
 THREAD_RE = re.compile(r"^/(?P<board>[^/]+)/res/(?P<thread_id>\d+)(?:\.html)?/?$")
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
+BOARD_THREAD_LIMIT = 50
 
 
 @dataclass(frozen=True)
@@ -21,9 +23,23 @@ class TwochThreadUrl:
 
 
 @dataclass(frozen=True)
+class TwochBoardUrl:
+    board: str
+    normalized_url: str
+
+
+@dataclass(frozen=True)
 class TwochThread:
     texts: list[str]
     image_urls: list[str]
+
+
+@dataclass(frozen=True)
+class TwochImport:
+    texts: list[str]
+    image_urls: list[str]
+    thread_count: int
+    failed_thread_count: int = 0
 
 
 def parse_thread_url(url: str) -> TwochThreadUrl:
@@ -39,6 +55,36 @@ def parse_thread_url(url: str) -> TwochThreadUrl:
         thread_id=thread_id,
         normalized_url=f"https://{parsed.netloc}/{board}/res/{thread_id}.html",
     )
+
+
+def parse_board_url(url: str) -> TwochBoardUrl:
+    parsed = urlparse(url.strip())
+    match = BOARD_RE.match(parsed.path)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or match is None:
+        raise ValueError("expected 2ch board URL like https://2ch.hk/b/")
+
+    board = match.group("board")
+    return TwochBoardUrl(board=board, normalized_url=f"https://{parsed.netloc}/{board}/")
+
+
+def extract_thread_urls_from_board_html(html: str, *, board: str, base_url: str) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    urls: list[str] = []
+    seen: set[str] = set()
+    thread_pattern = re.compile(rf"^/{re.escape(board)}/res/(\d+)(?:\.html)?")
+
+    for tag in soup.find_all("a", href=True):
+        absolute_url = urljoin(base_url, str(tag["href"]))
+        parsed = urlparse(absolute_url)
+        match = thread_pattern.match(parsed.path)
+        if match is None:
+            continue
+        normalized_url = f"https://{parsed.netloc}/{board}/res/{match.group(1)}.html"
+        if normalized_url not in seen:
+            seen.add(normalized_url)
+            urls.append(normalized_url)
+
+    return urls
 
 
 def parse_thread_html(html: str, *, base_url: str) -> TwochThread:
@@ -111,3 +157,45 @@ async def fetch_thread(url: str) -> TwochThread:
         response = await client.get(parsed.normalized_url)
     response.raise_for_status()
     return parse_thread_html(response.text, base_url=parsed.normalized_url)
+
+
+async def fetch_board(url: str, *, limit: int = BOARD_THREAD_LIMIT) -> TwochImport:
+    parsed = parse_board_url(url)
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+        response = await client.get(parsed.normalized_url)
+    response.raise_for_status()
+
+    thread_urls = extract_thread_urls_from_board_html(
+        response.text,
+        board=parsed.board,
+        base_url=parsed.normalized_url,
+    )[:limit]
+    texts: list[str] = []
+    image_urls: list[str] = []
+    imported_threads = 0
+    failed_threads = 0
+
+    for thread_url in thread_urls:
+        try:
+            thread = await fetch_thread(thread_url)
+        except Exception:
+            failed_threads += 1
+            continue
+        imported_threads += 1
+        texts.extend(thread.texts)
+        image_urls.extend(thread.image_urls)
+
+    return TwochImport(
+        texts=texts,
+        image_urls=list(dict.fromkeys(image_urls)),
+        thread_count=imported_threads,
+        failed_thread_count=failed_threads,
+    )
+
+
+async def fetch_twoch_import(url: str) -> TwochImport:
+    try:
+        thread = await fetch_thread(url)
+    except ValueError:
+        return await fetch_board(url)
+    return TwochImport(texts=thread.texts, image_urls=thread.image_urls, thread_count=1)

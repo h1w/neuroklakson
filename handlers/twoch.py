@@ -9,7 +9,7 @@ from repositories.chats import ChatRepository
 from repositories.database import Database
 from repositories.messages import MessageRepository
 from services.admin import is_chat_admin
-from services.twoch import fetch_thread
+from services.twoch import fetch_twoch_import
 
 router = Router()
 ADMIN_ONLY_MESSAGE = "Эта команда только для админов чата"
@@ -36,13 +36,13 @@ async def rt2ch_handler(message: Message, database: Database, settings: Settings
 
     url = _command_arg(message)
     if not url:
-        await message.answer("Напиши ссылку на тред: /rt2ch https://2ch.hk/b/res/123.html")
+        await message.answer("Напиши ссылку на тред или доску: /rt2ch https://2ch.hk/b/res/123.html")
         return
 
     try:
-        thread = await fetch_thread(url)
+        imported = await fetch_twoch_import(url)
     except Exception:
-        await message.answer("Не смог прочитать тред 2ch")
+        await message.answer("Не смог прочитать ссылку 2ch")
         return
 
     async with database.acquire() as connection:
@@ -55,14 +55,17 @@ async def rt2ch_handler(message: Message, database: Database, settings: Settings
         repository = MessageRepository(connection)
         message_count = await repository.insert_messages_bulk(
             chat_id=message.chat.id,
-            messages=thread.texts,
+            messages=imported.texts,
             source="import",
         )
         photo_count = await repository.insert_external_photos_bulk(
             chat_id=message.chat.id,
-            urls=thread.image_urls,
+            urls=imported.image_urls,
             source="2ch",
             post_url=url,
         )
 
-    await message.answer(f"Импортировано из 2ch: {message_count} постов, {photo_count} картинок.")
+    answer = f"Импортировано из 2ch: {imported.thread_count} тредов, {message_count} постов, {photo_count} картинок."
+    if imported.failed_thread_count:
+        answer += f" Ошибок: {imported.failed_thread_count}."
+    await message.answer(answer)
