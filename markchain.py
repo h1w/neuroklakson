@@ -108,9 +108,9 @@ async def generate_text(chain, chain_length: int = 2, max_words: int = 100):
     return clean_generated_text(" ".join(output[:max_words]))
 
 
-async def makeShortSentence(text: str, max_words: int = 100):
+async def makeShortSentence(text: str, max_words: int = 100) -> str | None:
     messages = text.splitlines() or [text]
-    return generate_markov_text(messages, max_words=max_words) or ""
+    return generate_markov_text(messages, max_words=max_words)
 
 
 async def textCleaner(text: str):

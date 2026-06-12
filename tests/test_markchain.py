@@ -39,3 +39,7 @@ async def test_make_short_sentence_compatibility_wrapper_respects_max_words():
 
     assert result is not None
     assert len(result.split()) <= 4
+
+
+async def test_make_short_sentence_preserves_none_for_insufficient_corpus():
+    assert await markchain.makeShortSentence("слишком мало", max_words=7) is None
