@@ -14,6 +14,15 @@ from services.admin import is_chat_admin
 router = Router()
 
 ADMIN_ONLY_MESSAGE = "Эта команда только для админов чата"
+HELP_TEXT = """Команды бота:
+/start - пошел нахуй
+/help, /h - помощь по командам
+/generatemessage, /genmsg, /gm [normal|absurd|chaos] - сгенерировать сообщение
+/demotivatorgeneration, /demgen, /d [normal|absurd|chaos] - сгенерировать демотиватор
+/set_mode <normal|absurd|chaos> - установить режим генерации по умолчанию
+/stats, /s - статистика чата
+/learn_history - импортировать историю из ответа или txt-документа
+"""
 
 
 def _chat_title(message: Message) -> str | None:
@@ -28,17 +37,7 @@ async def start_handler(message: Message) -> None:
 
 @router.message(Command("help", "h"))
 async def help_handler(message: Message) -> None:
-    await message.answer(
-        """Команды бота:
-/start - пошел нахуй
-/help, /h - помощь по командам
-/generatemessage, /genmsg, /gm [normal|absurd|chaos] - сгенерировать сообщение
-/set_mode <normal|absurd|chaos> - установить режим генерации по умолчанию
-/stats, /s - статистика чата
-/learn_forwarded - ответом на сообщение добавить его как forwarded-материал
-/learn_history - импортировать историю из ответа или txt-документа
-"""
-    )
+    await message.answer(HELP_TEXT)
 
 
 @router.message(Command("set_mode"))

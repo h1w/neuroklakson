@@ -28,6 +28,19 @@ def _chat_title(message: Message) -> str | None:
 
 
 def _forwarded_from(message: Message) -> str | None:
+    forward_origin = getattr(message, "forward_origin", None)
+    if forward_origin is not None:
+        chat = getattr(forward_origin, "chat", None)
+        sender_user = getattr(forward_origin, "sender_user", None)
+        sender_chat = getattr(forward_origin, "sender_chat", None)
+        if chat is not None:
+            return str(chat.id)
+        if sender_user is not None:
+            return str(sender_user.id)
+        if sender_chat is not None:
+            return str(sender_chat.id)
+        return str(forward_origin)
+
     forward_from = getattr(message, "forward_from", None)
     if forward_from is not None:
         return str(forward_from.id)
@@ -35,6 +48,10 @@ def _forwarded_from(message: Message) -> str | None:
     if forward_from_chat is not None:
         return str(forward_from_chat.id)
     return None
+
+
+def message_learning_source(message: Message) -> str:
+    return "forwarded" if _forwarded_from(message) is not None else "message"
 
 
 def select_history_document(message: Message):
@@ -93,39 +110,6 @@ async def _learn_imported_text(
     )
 
 
-@router.message(Command("learn_forwarded"))
-async def learn_forwarded_handler(
-    message: Message,
-    database: Database,
-    settings: Settings,
-) -> None:
-    if not await is_chat_admin(
-        message.bot,
-        chat_id=message.chat.id,
-        user_id=message.from_user.id if message.from_user else None,
-    ):
-        await message.answer(ADMIN_ONLY_MESSAGE)
-        return
-
-    if message.reply_to_message is None:
-        await message.answer("Ответь командой на сообщение, которое нужно выучить.")
-        return
-
-    replied = message.reply_to_message
-    async with database.acquire() as connection:
-        await _upsert_chat(connection, message, settings)
-        learned = await LearningService(MessageRepository(connection)).learn_text(
-            chat_id=message.chat.id,
-            telegram_message_id=replied.message_id,
-            user_id=replied.from_user.id if replied.from_user else None,
-            text=_message_text(replied),
-            source="forwarded",
-            forwarded_from=_forwarded_from(replied),
-        )
-
-    await message.answer("Выучил forwarded-сообщение." if learned else "Там нечего учить.")
-
-
 @router.message(Command("learn_history"))
 async def learn_history_handler(
     message: Message,
@@ -174,7 +158,8 @@ async def passive_learning_handler(
             telegram_message_id=message.message_id,
             user_id=message.from_user.id if message.from_user else None,
             text=_message_text(message),
-            source="message",
+            source=message_learning_source(message),
+            forwarded_from=_forwarded_from(message),
         )
         if message.photo:
             await learning_service.learn_photo(

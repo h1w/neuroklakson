@@ -29,7 +29,7 @@
 - Create `services/generation.py`: corpus loading and Markov mode selection.
 - Create `handlers/common.py`: `/help`, `/stats`, `/set_mode`.
 - Create `handlers/generation.py`: `/gm`, `/demgen`.
-- Create `handlers/learning.py`: `/learn_forwarded`, `/learn_history`, passive message learning.
+- Create `handlers/learning.py`: `/learn_history` and passive message learning.
 - Modify `markchain.py`: replace old generator with pure mode-aware generator while keeping `makeShortSentence` compatibility until handlers move.
 - Modify `bot.py`: wire settings, database pool, routers, startup/shutdown.
 - Modify `README.md`: setup, Docker, migrations, tests, commands.
@@ -1760,7 +1760,6 @@ async def help_handler(message: types.Message) -> None:
         "Команды бота:\n"
         "/gm [normal|absurd|chaos] - сгенерировать сообщение\n"
         "/demgen [normal|absurd|chaos] - сгенерировать демотиватор\n"
-        "/learn_forwarded - выучить пересланное сообщение через reply\n"
         "/learn_history - импортировать историю из файла\n"
         "/set_mode normal|absurd|chaos - режим по умолчанию\n"
         "/stats - статистика чата\n"
@@ -1819,25 +1818,6 @@ router = Router()
 
 def _message_text(message: types.Message) -> str | None:
     return message.text or message.caption
-
-
-@router.message(Command("learn_forwarded"))
-async def learn_forwarded_handler(message: types.Message) -> None:
-    if message.reply_to_message is None:
-        await message.answer("Ответь командой на пересланное сообщение")
-        return
-    database = message.bot.get("database")
-    async with database.acquire() as connection:
-        service = LearningService(MessageRepository(connection))
-        saved = await service.learn_text(
-            chat_id=message.chat.id,
-            telegram_message_id=message.reply_to_message.message_id,
-            user_id=message.reply_to_message.from_user.id if message.reply_to_message.from_user else None,
-            text=_message_text(message.reply_to_message),
-            source="forwarded",
-            forwarded_from=str(message.reply_to_message.forward_origin),
-        )
-    await message.answer("Впитал" if saved else "Там нечего впитывать")
 
 
 @router.message(Command("learn_history"))
@@ -2094,7 +2074,7 @@ In `handlers/learning.py`, import `is_chat_admin`:
 from services.admin import is_chat_admin
 ```
 
-At the top of `learn_forwarded_handler` and `learn_history_handler`, add the same admin check:
+At the top of `learn_history_handler`, add the same admin check:
 
 ```python
     if not await is_chat_admin(message.bot, chat_id=message.chat.id, user_id=message.from_user.id if message.from_user else None):
@@ -2304,7 +2284,6 @@ uv run ruff check .
 - `/gm normal|absurd|chaos` - generate with a one-off mode override.
 - `/demgen` - generate a demotivator using the chat default mode.
 - `/demgen normal|absurd|chaos` - generate a demotivator with a one-off mode override.
-- `/learn_forwarded` - admin-only; reply to a forwarded message to teach the current chat.
 - `/learn_history` - admin-only; import a text history file into the current chat.
 - `/set_mode normal|absurd|chaos` - admin-only; set default mode for the chat.
 - `/stats` - show per-chat corpus and media stats.

@@ -30,12 +30,8 @@ def test_initial_migration_requires_message_text_fields():
     assert "normalized_text TEXT NOT NULL" in migration_sql
 
 
-def test_initial_migration_has_unconditional_unique_normalized_text_index():
+def test_initial_migration_allows_duplicate_normalized_texts():
     migration_sql = _compact_sql(Path("migrations/001_initial_schema.sql").read_text())
 
-    expected_index = (
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_chat_normalized_text "
-        "ON messages(chat_id, normalized_text);"
-    )
-
-    assert expected_index in migration_sql
+    assert "idx_messages_chat_normalized_text" not in migration_sql
+    assert "ON messages(chat_id, normalized_text)" not in migration_sql

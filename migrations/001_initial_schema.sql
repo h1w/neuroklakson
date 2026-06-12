@@ -58,9 +58,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_chat_message_id
     ON messages(chat_id, telegram_message_id)
     WHERE telegram_message_id IS NOT NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_chat_normalized_text
-    ON messages(chat_id, normalized_text);
-
 CREATE INDEX IF NOT EXISTS idx_photos_chat_id
     ON photos(chat_id);
 

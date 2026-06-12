@@ -24,11 +24,11 @@ def test_parse_history_text_accepts_plain_lines_and_counts_rejections():
         )
     )
 
-    assert parsed.accepted == ["кабачок объявил войну чайнику"]
-    assert parsed.rejected_count == 3
+    assert parsed.accepted == ["кабачок объявил войну чайнику", "смотри", "ок"]
+    assert parsed.rejected_count == 1
 
 
-def test_parse_history_text_extracts_telegram_export_lines_and_rejects_short_lines():
+def test_parse_history_text_extracts_telegram_export_lines_and_keeps_short_lines():
     parsed = parse_history_text(
         "\n".join(
             [
@@ -38,5 +38,5 @@ def test_parse_history_text_extracts_telegram_export_lines_and_rejects_short_lin
         )
     )
 
-    assert parsed.accepted == ["кабачок объявил войну чайнику"]
-    assert parsed.rejected_count == 1
+    assert parsed.accepted == ["кабачок объявил войну чайнику", "ок"]
+    assert parsed.rejected_count == 0

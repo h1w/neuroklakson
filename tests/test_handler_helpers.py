@@ -6,7 +6,7 @@ import pytest
 import handlers.common as common
 import handlers.generation as generation
 from handlers.generation import parse_mode_argument
-from handlers.learning import _learn_imported_text, select_history_document
+from handlers.learning import _learn_imported_text, message_learning_source, select_history_document
 
 
 class FakeTransaction:
@@ -263,6 +263,10 @@ def test_runtime_code_does_not_use_bot_mapping_access():
     assert "message.bot[" not in runtime_source
 
 
+def test_help_text_does_not_document_manual_forward_learning_command():
+    assert "/learn_forwarded" not in common.HELP_TEXT
+
+
 def test_select_history_document_prefers_attached_document_over_caption_text():
     document = SimpleNamespace(file_id="attached-file")
     message = SimpleNamespace(
@@ -283,6 +287,18 @@ def test_select_history_document_uses_replied_document():
     )
 
     assert select_history_document(message) is document
+
+
+def test_message_learning_source_marks_forwarded_messages():
+    message = SimpleNamespace(forward_origin=SimpleNamespace(type="channel"))
+
+    assert message_learning_source(message) == "forwarded"
+
+
+def test_message_learning_source_keeps_plain_messages_as_message():
+    message = SimpleNamespace(forward_origin=None)
+
+    assert message_learning_source(message) == "message"
 
 
 async def test_learn_imported_text_wraps_message_insert_and_finish_in_transaction():

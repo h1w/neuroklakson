@@ -81,7 +81,6 @@ uv run ruff check .
 
 - `/gm [mode]` - generate a Markov message. The optional mode is `normal`, `absurd`, or `chaos`.
 - `/demgen [mode]` - generate a demotivator. The optional mode is `normal`, `absurd`, or `chaos`.
-- `/learn_forwarded` - admin-only; reply to a message to learn it into the current chat. Forwarded messages are supported, but any replied message can be learned.
 - `/learn_history` - admin-only; import and learn from exported chat history in an attached or replied-to text document.
 - `/set_mode <mode>` - admin-only; set the chat's default generation mode.
 - `/stats` - show learning and generation statistics for the chat.

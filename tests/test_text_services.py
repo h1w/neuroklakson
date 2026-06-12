@@ -12,8 +12,8 @@ def test_normalize_training_text_strips_links_and_collapses_spaces():
     assert normalize_training_text("смотри https://example.com  вот") == "смотри вот"
 
 
-def test_normalize_training_text_rejects_too_short_noise():
-    assert normalize_training_text("ок") is None
+def test_normalize_training_text_keeps_short_messages():
+    assert normalize_training_text("ок") == "ок"
 
 
 def test_normalize_training_text_trims_extreme_word_lengths():

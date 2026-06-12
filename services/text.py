@@ -33,9 +33,6 @@ def normalize_training_text(text: str | None, max_word_length: int = 32) -> str 
     cleaned = " ".join(cleaned.split())
     cleaned = _trim_words(cleaned, max_word_length)
 
-    if len(cleaned) < 8:
-        return None
-
     return cleaned
 
 

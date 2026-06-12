@@ -106,16 +106,16 @@ async def test_message_repository_insert_message_ignores_conflicts():
 
 
 async def test_message_repository_insert_messages_bulk_returns_accepted_count():
-    connection = FakeConnection(execute_results=["INSERT 0 1", "INSERT 0 0", "INSERT 0 1"])
+    connection = FakeConnection(execute_results=["INSERT 0 1", "INSERT 0 1", "INSERT 0 1"])
     repository = MessageRepository(connection)
 
     count = await repository.insert_messages_bulk(
         chat_id=100,
-        messages=["one", "two", "three"],
+        messages=["same", "same", "same"],
         source="import",
     )
 
-    assert count == 2
+    assert count == 3
     assert len(connection.execute_calls) == 3
     for query, args in connection.execute_calls:
         assert "INSERT INTO messages" in query

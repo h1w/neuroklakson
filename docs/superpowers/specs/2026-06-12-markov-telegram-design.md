@@ -95,7 +95,6 @@ Generation commands:
 
 Training and settings commands:
 
-- `/learn_forwarded`: admin-only command that learns from the replied forwarded message. If Telegram update handling makes grouped forwarded-message batches practical, support batching; otherwise reply-based learning is the first implementation.
 - `/learn_history`: admin-only command that imports a replied or attached text history file into the current chat's corpus.
 - `/set_mode normal|absurd|chaos`: admin-only command that changes the chat's default generation mode.
 - `/stats`: shows message count, photo count, counts by learning source, default mode, and latest import summary.
