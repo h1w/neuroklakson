@@ -2,3 +2,4 @@ venv/
 credentials.cfg
 __pycache__/
 database.db
+.worktrees/
