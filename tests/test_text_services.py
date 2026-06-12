@@ -24,3 +24,11 @@ def test_normalize_training_text_trims_extreme_word_lengths():
 
 def test_clean_generated_text_removes_repeated_words_and_normalizes_punctuation_spacing():
     assert clean_generated_text("кот кот кот ,  орет   .") == "кот, орет."
+
+
+def test_clean_generated_text_preserves_repeated_punctuation_clusters():
+    assert clean_generated_text("привет!!! ну??") == "привет!!! ну??"
+
+
+def test_clean_generated_text_spaces_after_dot_clusters_without_splitting_them():
+    assert clean_generated_text("да...нет") == "да... нет"

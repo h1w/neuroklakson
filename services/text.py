@@ -5,7 +5,7 @@ CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 EXPORT_LINE_RE = re.compile(r"^\[[^\]]+\]\s*[^:]+:\s*(.*)$")
 REPEATED_WORD_RE = re.compile(r"\b(?P<word>\w+)(?:\s+(?P=word))+\b", re.IGNORECASE)
 SPACE_BEFORE_PUNCTUATION_RE = re.compile(r"\s+([,.;:!?])")
-SPACE_AFTER_PUNCTUATION_RE = re.compile(r"([,.;:!?])(?=\S)")
+SPACE_AFTER_PUNCTUATION_RE = re.compile(r"([,.;:!?]+)(?=[^\s,.;:!?])")
 LONG_WORD_RE = re.compile(r"\w+")
 
 

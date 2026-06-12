@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from services.text import extract_export_text, normalize_training_text
 
 
-@dataclass
+@dataclass(frozen=True)
 class ParsedHistory:
     accepted: list[str]
     rejected_count: int

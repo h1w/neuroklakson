@@ -1,4 +1,15 @@
-from services.imports import parse_history_text
+from dataclasses import FrozenInstanceError
+
+import pytest
+
+from services.imports import ParsedHistory, parse_history_text
+
+
+def test_parsed_history_is_immutable():
+    parsed = ParsedHistory(accepted=["кабачок объявил войну чайнику"], rejected_count=0)
+
+    with pytest.raises(FrozenInstanceError):
+        parsed.rejected_count = 1
 
 
 def test_parse_history_text_accepts_plain_lines_and_counts_rejections():
