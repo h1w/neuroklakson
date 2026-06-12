@@ -1,6 +1,7 @@
 import importlib
 import sys
 import tomllib
+from pathlib import Path
 
 import pytest
 
@@ -91,3 +92,10 @@ def test_bot_import_uses_env_config_without_credentials_file(monkeypatch, tmp_pa
     assert bot_module.config["BOT"]["BredoMessageMinWordSize"] == "5"
 
     sys.modules.pop("bot", None)
+
+
+def test_dockerignore_excludes_local_runtime_files():
+    dockerignore_entries = set(Path(".dockerignore").read_text().splitlines())
+
+    assert ".venv" in dockerignore_entries
+    assert "credentials.cfg" in dockerignore_entries
