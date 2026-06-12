@@ -222,3 +222,24 @@ class MessageRepository:
             "import": row["import"] if row else 0,
             "photos": photos or 0,
         }
+
+    async def get_latest_import(self, *, chat_id: int) -> dict[str, Any] | None:
+        row = await self.connection.fetchrow(
+            """
+            SELECT
+                status,
+                accepted_count,
+                rejected_count,
+                error_text,
+                filename,
+                created_at
+            FROM imports
+            WHERE chat_id = $1
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            chat_id,
+        )
+        if row is None:
+            return None
+        return dict(row)

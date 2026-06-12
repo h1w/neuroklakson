@@ -57,6 +57,9 @@ def generate_markov_text(
 
     order, reset_probability = MODE_SETTINGS[selected_mode]
     tokenized_messages = _tokenize_messages(messages)
+    if len(tokenized_messages) < 3:
+        return None
+
     chain = _build_chain(tokenized_messages, order)
     if not chain:
         return None

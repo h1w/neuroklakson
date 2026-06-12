@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import handlers.common as common
 import handlers.generation as generation
 from handlers.generation import parse_mode_argument
 from handlers.learning import _learn_imported_text, select_history_document
@@ -201,6 +202,55 @@ async def test_generate_demotivator_passes_mode_override(monkeypatch):
 
     assert mode_overrides == ["chaos", "chaos"]
     assert message.answers == ["Я ещё очень тупой, нужно немного подождать"]
+
+
+async def test_stats_handler_includes_latest_import_summary(monkeypatch):
+    connection = object()
+    calls = {}
+
+    class FakeChatRepository:
+        def __init__(self, repository_connection):
+            assert repository_connection is connection
+
+        async def get_default_mode(self, chat_id):
+            calls["mode_chat_id"] = chat_id
+            return "normal"
+
+    class FakeMessageRepository:
+        def __init__(self, repository_connection):
+            assert repository_connection is connection
+
+        async def get_stats(self, *, chat_id):
+            calls["stats_chat_id"] = chat_id
+            return {"total": 10, "message": 7, "forwarded": 1, "import": 2, "photos": 3}
+
+        async def get_latest_import(self, *, chat_id):
+            calls["latest_import_chat_id"] = chat_id
+            return {
+                "status": "failed",
+                "accepted_count": 10,
+                "rejected_count": 2,
+                "error_text": "parse error",
+                "filename": "history.txt",
+                "created_at": "2026-06-12 10:00:00",
+            }
+
+    monkeypatch.setattr("handlers.common.ChatRepository", FakeChatRepository)
+    monkeypatch.setattr("handlers.common.MessageRepository", FakeMessageRepository)
+
+    message = SimpleNamespace(chat=SimpleNamespace(id=100), answers=[])
+
+    async def answer(text):
+        message.answers.append(text)
+
+    message.answer = answer
+
+    await common.stats_handler(message, FakeDatabase(connection))
+
+    assert calls == {"mode_chat_id": 100, "stats_chat_id": 100, "latest_import_chat_id": 100}
+    assert len(message.answers) == 1
+    assert "Последний импорт: failed, принято 10, отброшено 2" in message.answers[0]
+    assert "Ошибка: parse error" in message.answers[0]
 
 
 def test_runtime_code_does_not_use_bot_mapping_access():

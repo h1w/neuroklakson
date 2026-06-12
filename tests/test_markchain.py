@@ -21,6 +21,15 @@ def test_generate_markov_text_returns_none_for_too_small_corpus():
     assert markchain.generate_markov_text(["only two", "tiny"], rng=random.Random(1)) is None
 
 
+def test_generate_markov_text_returns_none_for_single_long_message():
+    assert (
+        markchain.generate_markov_text(
+            ["один длинный кабачок спорит с чайником"], mode="absurd", max_words=8
+        )
+        is None
+    )
+
+
 @pytest.mark.parametrize("mode", ["normal", "absurd", "chaos"])
 def test_generate_markov_text_supports_modes_and_respects_max_words(mode):
     result = markchain.generate_markov_text(MESSAGES, mode=mode, max_words=5, rng=random.Random(1))

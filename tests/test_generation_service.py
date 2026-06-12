@@ -63,6 +63,7 @@ async def test_generate_message_returns_text_within_max_words():
         [
             "alpha beta gamma delta epsilon zeta",
             "beta gamma delta epsilon zeta eta",
+            "gamma delta epsilon zeta eta theta",
         ]
     )
     chats = FakeChats(default_mode="normal")

@@ -81,17 +81,25 @@ async def stats_handler(message: Message, database: Database) -> None:
         message_repository = MessageRepository(connection)
         mode = await chat_repository.get_default_mode(message.chat.id) or "absurd"
         stats = await message_repository.get_stats(chat_id=message.chat.id)
+        latest_import = await message_repository.get_latest_import(chat_id=message.chat.id)
 
-    await message.answer(
-        "\n".join(
-            [
-                f"ID чата: {message.chat.id}",
-                f"Режим: {mode}",
-                f"Всего сообщений: {stats['total']}",
-                f"Обычные: {stats['message']}",
-                f"Forwarded: {stats['forwarded']}",
-                f"Import: {stats['import']}",
-                f"Фото: {stats['photos']}",
-            ]
+    lines = [
+        f"ID чата: {message.chat.id}",
+        f"Режим: {mode}",
+        f"Всего сообщений: {stats['total']}",
+        f"Обычные: {stats['message']}",
+        f"Forwarded: {stats['forwarded']}",
+        f"Import: {stats['import']}",
+        f"Фото: {stats['photos']}",
+    ]
+    if latest_import is not None:
+        lines.append(
+            "Последний импорт: "
+            f"{latest_import['status']}, "
+            f"принято {latest_import['accepted_count']}, "
+            f"отброшено {latest_import['rejected_count']}"
         )
-    )
+        if latest_import.get("status") == "failed" and latest_import.get("error_text"):
+            lines.append(f"Ошибка: {latest_import['error_text']}")
+
+    await message.answer("\n".join(lines))

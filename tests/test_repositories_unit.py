@@ -256,6 +256,44 @@ async def test_message_repository_get_stats_returns_zero_fallbacks():
     assert stats == {"total": 0, "message": 0, "forwarded": 0, "import": 0, "photos": 0}
 
 
+async def test_message_repository_get_latest_import_returns_latest_import_summary():
+    import_row = {
+        "status": "failed",
+        "accepted_count": 7,
+        "rejected_count": 2,
+        "error_text": "bad row",
+        "filename": "history.txt",
+        "created_at": "2026-06-12 10:00:00",
+    }
+    connection = FakeConnection(fetchrow_row=import_row)
+    repository = MessageRepository(connection)
+
+    latest_import = await repository.get_latest_import(chat_id=100)
+
+    query, args = connection.fetchrow_calls[0]
+    assert latest_import == import_row
+    assert "SELECT" in query
+    assert "status" in query
+    assert "accepted_count" in query
+    assert "rejected_count" in query
+    assert "error_text" in query
+    assert "filename" in query
+    assert "created_at" in query
+    assert "FROM imports" in query
+    assert "ORDER BY created_at DESC" in query
+    assert "LIMIT 1" in query
+    assert args == (100,)
+
+
+async def test_message_repository_get_latest_import_returns_none_without_imports():
+    connection = FakeConnection(fetchrow_row=None)
+    repository = MessageRepository(connection)
+
+    latest_import = await repository.get_latest_import(chat_id=100)
+
+    assert latest_import is None
+
+
 def test_repository_public_write_and_read_methods_use_keyword_only_parameters():
     methods = [
         ChatRepository.upsert_chat,
@@ -269,6 +307,7 @@ def test_repository_public_write_and_read_methods_use_keyword_only_parameters():
         MessageRepository.get_random_message,
         MessageRepository.get_random_photo,
         MessageRepository.get_stats,
+        MessageRepository.get_latest_import,
     ]
 
     for method in methods:
