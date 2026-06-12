@@ -156,7 +156,7 @@ BREDO_QUOTE_QUOTE_TEXT_FONT=fonts/OpenSans-Italic.ttf
 Create `Dockerfile`:
 
 ```dockerfile
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -167,12 +167,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir ".[dev]"
+COPY pyproject.toml uv.lock ./
+RUN uv sync --extra dev --frozen --no-cache
 
 COPY . .
 
-CMD ["python", "bot.py"]
+CMD ["uv", "run", "python", "bot.py"]
 ```
 
 Create `docker-compose.yml`:
@@ -2293,11 +2293,9 @@ docker compose run --rm bot python migrations/apply.py
 ## Local Development
 
 ```bash
-python -m venv venv
-. venv/bin/activate
-pip install -e ".[dev]"
-pytest
-ruff check .
+uv sync --extra dev
+uv run pytest
+uv run ruff check .
 ```
 
 ## Commands
