@@ -125,6 +125,48 @@ def test_tokenize_messages_filters_source_noise_before_chain_building():
     ]
 
 
+def test_tokenize_messages_filters_prompt_instruction_bullets():
+    tokenized = markchain._tokenize_messages(
+        [
+            "* Выделяй маты жирным текстом",
+            "* Постоянно ворчишь. Всех оскорбляй",
+            "кабачок орет на автобус около подъезда",
+        ]
+    )
+
+    assert tokenized == [["кабачок", "орет", "на", "автобус", "около", "подъезда"]]
+
+
+def test_tokenize_messages_filters_formal_wikipedia_fragments():
+    tokenized = markchain._tokenize_messages(
+        [
+            "разработка концепции развития рынка ценных бумаг утверждена президентом",
+            "приостановлении обслуживания внутреннего долга заёмщиков",
+            "хуй спорит с кабачком около подъезда",
+        ]
+    )
+
+    assert tokenized == [["хуй", "спорит", "с", "кабачком", "около", "подъезда"]]
+
+
+def test_generate_markov_text_ignores_prompt_instruction_noise(monkeypatch):
+    messages = [
+        "* Выделяй маты жирным текстом",
+        "* Постоянно ворчишь. Всех оскорбляй",
+        "кабачок орет на автобус около подъезда",
+        "автобус спорит с чайником около гаража",
+        "чайник ругает кабачок через модем",
+        "хуй чинит пельмени возле подъезда",
+    ]
+
+    result = markchain.generate_markov_text(messages, mode="normal", max_words=12, rng=random.Random(4))
+
+    assert result is not None
+    assert "*" not in result
+    assert "выделяй" not in result.lower()
+    assert "постоянно" not in result.lower()
+
+
 def test_score_candidate_prefers_absurd_specific_varied_text():
     corpus = [
         "кабачок спорит с автобусом около подъезда",
@@ -197,6 +239,78 @@ def test_score_candidate_penalizes_long_latin_noise():
     )
 
     assert clean > noisy
+
+
+def test_choose_reset_context_prefers_related_context():
+    keys = [("чубайс", "чинит"), ("чайник", "ругает"), ("чубайс", "падает")]
+    reset_index = markchain._build_reset_index(keys)
+
+    selected = markchain._choose_reset_context(
+        keys,
+        current_context=("чубайс", "орет"),
+        random_source=random.Random(2),
+        reset_index=reset_index,
+    )
+
+    assert selected in {("чубайс", "чинит"), ("чубайс", "падает")}
+
+
+def test_build_reset_index_maps_content_words_to_contexts():
+    keys = [("чубайс", "чинит"), ("чайник", "ругает"), ("чубайс", "падает")]
+
+    reset_index = markchain._build_reset_index(keys)
+
+    assert reset_index["чубайс"] == [("чубайс", "чинит"), ("чубайс", "падает")]
+    assert reset_index["чайник"] == [("чайник", "ругает")]
+
+
+def test_score_candidate_penalizes_unseen_word_seams():
+    tokenized = markchain._tokenize_messages(
+        [
+            "кот ест рыбу около подъезда",
+            "банк печатает деньги возле завода",
+            "чайник ругает автобус через модем",
+        ]
+    )
+    frequencies = markchain._word_frequencies([" ".join(words) for words in tokenized])
+    transitions = markchain._transition_frequencies(tokenized)
+
+    coherent = markchain._score_candidate(
+        "кот ест рыбу около подъезда",
+        frequencies,
+        mode="normal",
+        transitions=transitions,
+    )
+    stitched = markchain._score_candidate(
+        "кот ест деньги возле завода",
+        frequencies,
+        mode="normal",
+        transitions=transitions,
+    )
+
+    assert coherent > stitched
+
+
+def test_score_candidate_penalizes_encyclopedic_fragments_in_absurd_modes():
+    corpus = [
+        "чубайс чинит кабачок у подъезда",
+        "залупа спорит с вагиной около автобуса",
+        "государственная программа развития рынка ценных бумаг утверждена президентом",
+    ]
+    frequencies = markchain._word_frequencies(corpus)
+
+    funny = markchain._score_candidate(
+        "чубайс чинит кабачок у подъезда",
+        frequencies,
+        mode="absurd",
+    )
+    encyclopedic = markchain._score_candidate(
+        "государственная программа развития рынка ценных бумаг утверждена президентом",
+        frequencies,
+        mode="absurd",
+    )
+
+    assert funny > encyclopedic
 
 
 def test_generate_markov_text_cleans_after_max_word_truncation(monkeypatch):

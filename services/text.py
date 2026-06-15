@@ -9,6 +9,7 @@ SPACE_AFTER_PUNCTUATION_RE = re.compile(r"([,.;:!?]+)(?=[^\s,.;:!?])")
 LONG_WORD_RE = re.compile(r"\w+")
 STANDALONE_AT_RE = re.compile(r"(?:^|\s)@(?!\w)(?=\s|$)")
 PROMPT_NOISE_RE = re.compile(r"\b(?:instructions?|prompt|system)\b", re.IGNORECASE)
+WIKI_CITATION_RE = re.compile(r"\[\d+\]")
 DANGLING_END_WORDS = {
     "а",
     "без",
@@ -60,6 +61,7 @@ def normalize_training_text(text: str | None, max_word_length: int = 32) -> str 
         return None
 
     cleaned = LINK_RE.sub(" ", cleaned)
+    cleaned = WIKI_CITATION_RE.sub("", cleaned)
     cleaned = CONTROL_RE.sub(" ", cleaned)
     cleaned = " ".join(cleaned.split())
     cleaned = _trim_words(cleaned, max_word_length)
@@ -70,6 +72,7 @@ def normalize_training_text(text: str | None, max_word_length: int = 32) -> str 
 def clean_generated_text(text: str, max_word_length: int = 32) -> str:
     text = STANDALONE_AT_RE.sub(" ", text)
     text = PROMPT_NOISE_RE.sub(" ", text)
+    text = WIKI_CITATION_RE.sub("", text)
     cleaned = CONTROL_RE.sub(" ", text)
     cleaned = " ".join(cleaned.split())
 

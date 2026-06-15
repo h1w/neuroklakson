@@ -15,3 +15,11 @@ def test_polish_morphology_preserves_uppercase_style():
 
 def test_polish_morphology_leaves_latin_and_unknown_noise_unchanged():
     assert polish_morphology("с vpn без tlyjrxbagyafamfyy") == "с vpn без tlyjrxbagyafamfyy"
+
+
+def test_polish_morphology_inflects_adjective_noun_phrase_after_preposition():
+    assert polish_morphology("с кривожопая хуйня без важная роль") == "с кривожопой хуйнёй без важной роли"
+
+
+def test_polish_morphology_agrees_adjectives_with_following_nouns():
+    assert polish_morphology("важную биткоины неизбежных социализм") == "важные биткоины неизбежный социализм"

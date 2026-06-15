@@ -63,6 +63,10 @@ LONG_LATIN_RE = re.compile(r"\b[a-z]{16,}\b", re.IGNORECASE)
 LATIN_RE = re.compile(r"[A-Za-z]")
 CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 PROMPT_NOISE_RE = re.compile(r"\b(?:instructions?|prompt|system)\b", re.IGNORECASE)
+PROMPT_BULLET_RE = re.compile(
+    r"^\s*[*-]\s+(?:выделяй|постоянно|отвечай|используй|пиши|оскорбляй|ворчишь|говори)\b",
+    re.IGNORECASE,
+)
 QUOTE_TOKEN_RE = re.compile(r"(?:^|\s)>+\S+")
 DANGLING_START_WORDS = {"а", "и", "или", "но", "что", "это"}
 DANGLING_END_WORDS = {"а", "без", "в", "во", "для", "до", "за", "и", "или", "из", "к", "на", "не", "но", "о", "об", "от", "по", "под", "при", "про", "с", "со", "то", "у", "что"}
@@ -87,13 +91,63 @@ PROVOCATIVE_WORDS = {
 }
 BORING_WORDS = {
     "административными",
+    "бумаг",
+    "валютных",
+    "государственная",
+    "государственного",
     "группами",
+    "денежная",
+    "денежную",
+    "денежные",
+    "долгов",
+    "должный",
+    "заёмщиков",
     "инструменты",
     "инфраструктуры",
+    "концепции",
+    "масштабных",
     "оптимальной",
+    "предприятие",
+    "предприятиям",
+    "приватизация",
+    "приватизацией",
+    "программы",
+    "программа",
+    "прямых",
+    "развития",
+    "рынка",
     "регулирование",
     "социальной",
+    "собственника",
+    "утверждена",
     "функциональности",
+    "ценных",
+}
+FORMAL_SOURCE_WORDS = BORING_WORDS | {
+    "авторы",
+    "бюджета",
+    "внутреннего",
+    "выполнение",
+    "дефолт",
+    "дискредитатор",
+    "долга",
+    "думы",
+    "заёмщиков",
+    "комиссии",
+    "концепция",
+    "обвала",
+    "обслуживания",
+    "осуществлению",
+    "подготовленном",
+    "президентом",
+    "прекратило",
+    "приостановлении",
+    "причинами",
+    "реформ",
+    "рубля",
+    "специальной",
+    "утверждены",
+    "федерации",
 }
 
 
@@ -105,13 +159,14 @@ class ModeProfile:
     rare_word_weight: float
     variety_weight: float
     provocation_weight: float
+    seam_penalty_weight: float
     target_words: int
 
 
 MODE_SETTINGS: dict[GenerationMode, ModeProfile] = {
-    "normal": ModeProfile(order=2, reset_probability=0.04, candidate_count=12, rare_word_weight=0.6, variety_weight=1.0, provocation_weight=0.4, target_words=22),
-    "absurd": ModeProfile(order=2, reset_probability=0.28, candidate_count=44, rare_word_weight=1.1, variety_weight=1.2, provocation_weight=1.4, target_words=16),
-    "chaos": ModeProfile(order=1, reset_probability=0.48, candidate_count=96, rare_word_weight=1.4, variety_weight=1.5, provocation_weight=2.4, target_words=11),
+    "normal": ModeProfile(order=2, reset_probability=0.04, candidate_count=12, rare_word_weight=0.6, variety_weight=1.0, provocation_weight=0.4, seam_penalty_weight=1.4, target_words=22),
+    "absurd": ModeProfile(order=2, reset_probability=0.28, candidate_count=44, rare_word_weight=1.1, variety_weight=1.2, provocation_weight=1.4, seam_penalty_weight=0.9, target_words=16),
+    "chaos": ModeProfile(order=1, reset_probability=0.48, candidate_count=96, rare_word_weight=1.4, variety_weight=1.5, provocation_weight=2.4, seam_penalty_weight=0.45, target_words=11),
 }
 
 
@@ -146,8 +201,22 @@ def _has_non_russian_noise(words: Iterable[str]) -> bool:
     return any(word.strip(",.;:!?()[]{}\"'>").lower() in NON_RUSSIAN_NOISE_WORDS for word in words)
 
 
+def _formal_source_ratio(words: Iterable[str]) -> float:
+    cleaned_words = [word.strip(",.;:!?()[]{}\"'«»“”„—-").lower() for word in words]
+    content_words = [word for word in cleaned_words if word and word not in SERVICE_WORDS]
+    if not content_words:
+        return 0.0
+    formal_hits = sum(1 for word in content_words if word in FORMAL_SOURCE_WORDS)
+    return formal_hits / len(content_words)
+
+
 def _is_noisy_source_message(text: str) -> bool:
-    if PROMPT_NOISE_RE.search(text) or LONG_LATIN_RE.search(text) or QUOTE_TOKEN_RE.search(text):
+    if (
+        PROMPT_NOISE_RE.search(text)
+        or PROMPT_BULLET_RE.search(text)
+        or LONG_LATIN_RE.search(text)
+        or QUOTE_TOKEN_RE.search(text)
+    ):
         return True
     words = [word.strip(",.;:!?()[]{}\"'") for word in text.split()]
     meaningful_words = [word for word in words if word]
@@ -159,6 +228,8 @@ def _is_noisy_source_message(text: str) -> bool:
     latin_words = [word for word in meaningful_words if LATIN_RE.search(word)]
     allowed_latin_words = [word for word in latin_words if word.lower() in ALLOWED_LATIN_WORDS]
     if latin_words and len(allowed_latin_words) != len(latin_words):
+        return True
+    if _formal_source_ratio(meaningful_words) >= 0.42:
         return True
     return len(cyrillic_words) < 2
 
@@ -173,6 +244,14 @@ def _build_chain(tokenized_messages: Iterable[list[str]], order: int) -> dict[tu
     return chain
 
 
+def _transition_frequencies(tokenized_messages: Iterable[list[str]]) -> Counter[tuple[str, str]]:
+    transitions: Counter[tuple[str, str]] = Counter()
+    for words in tokenized_messages:
+        cleaned_words = [word.strip(",.;:!?").lower() for word in words if word.strip(",.;:!?")]
+        transitions.update(zip(cleaned_words, cleaned_words[1:], strict=False))
+    return transitions
+
+
 def _word_frequencies(messages: Iterable[str | None]) -> Counter[str]:
     frequencies: Counter[str] = Counter()
     for words in _tokenize_messages(messages):
@@ -182,6 +261,46 @@ def _word_frequencies(messages: Iterable[str | None]) -> Counter[str]:
 
 def _content_words(words: list[str]) -> list[str]:
     return [word for word in words if word.strip(",.;:!?").lower() not in SERVICE_WORDS]
+
+
+def _content_word_set(words: Iterable[str]) -> set[str]:
+    return {
+        word.strip(",.;:!?").lower()
+        for word in words
+        if word.strip(",.;:!?").lower() not in SERVICE_WORDS
+    }
+
+
+def _build_reset_index(keys: Iterable[tuple[str, ...]]) -> dict[str, list[tuple[str, ...]]]:
+    reset_index: dict[str, list[tuple[str, ...]]] = {}
+    for key in keys:
+        for word in _content_word_set(key):
+            reset_index.setdefault(word, []).append(key)
+    return reset_index
+
+
+def _choose_reset_context(
+    keys: list[tuple[str, ...]],
+    *,
+    current_context: tuple[str, ...],
+    random_source: random.Random,
+    reset_index: dict[str, list[tuple[str, ...]]] | None = None,
+) -> tuple[str, ...]:
+    current_words = _content_word_set(current_context)
+    if not current_words:
+        return random_source.choice(keys)
+
+    if reset_index is None:
+        related_keys = [key for key in keys if current_words & _content_word_set(key)]
+    else:
+        related_keys = []
+        seen_keys: set[tuple[str, ...]] = set()
+        for word in current_words:
+            for key in reset_index.get(word, []):
+                if key not in seen_keys:
+                    related_keys.append(key)
+                    seen_keys.add(key)
+    return random_source.choice(related_keys or keys)
 
 
 def _is_garbage_candidate(text: str, frequencies: Counter[str]) -> bool:
@@ -214,6 +333,7 @@ def _score_candidate(
     *,
     mode: GenerationMode,
     target_words: int | None = None,
+    transitions: Counter[tuple[str, str]] | None = None,
 ) -> float:
     selected_mode = _validate_mode(mode)
     profile = MODE_SETTINGS[selected_mode]
@@ -235,6 +355,11 @@ def _score_candidate(
     provocation_score = sum(1 for word in set(content_words) if word in PROVOCATIVE_WORDS)
     uppercase_score = sum(1 for word in set(text.split()) if len(word) >= 3 and word.isupper())
     boring_penalty = sum(1 for word in set(content_words) if word in BORING_WORDS)
+    formal_ratio = boring_penalty / max(len(set(content_words)), 1)
+    unseen_transition_penalty = 0
+    if transitions is not None:
+        pairs = list(zip(words, words[1:], strict=False))
+        unseen_transition_penalty = sum(1 for pair in pairs if transitions.get(pair, 0) == 0)
 
     score = 0.0
     score += length_score * 1.4
@@ -246,7 +371,9 @@ def _score_candidate(
     score -= service_penalty * 2.2
     score -= repeat_penalty * 0.8
     score -= latin_noise_penalty
-    score -= boring_penalty * 1.4
+    score -= boring_penalty * 2.6
+    score -= formal_ratio * 7.0
+    score -= unseen_transition_penalty * profile.seam_penalty_weight
     if words[0] in DANGLING_START_WORDS:
         score -= 1.5
     if words[-1] in DANGLING_END_WORDS:
@@ -262,17 +389,28 @@ def _generate_candidate(
     reset_probability: float,
     max_words: int,
     random_source: random.Random,
+    reset_index: dict[str, list[tuple[str, ...]]] | None = None,
 ) -> str:
     context = random_source.choice(keys)
     output = list(context[:max_words])
 
     while len(output) < max_words:
         if random_source.random() < reset_probability:
-            context = random_source.choice(keys)
+            context = _choose_reset_context(
+                keys,
+                current_context=context,
+                random_source=random_source,
+                reset_index=reset_index,
+            )
 
         next_words = chain.get(context)
         if not next_words:
-            context = random_source.choice(keys)
+            context = _choose_reset_context(
+                keys,
+                current_context=context,
+                random_source=random_source,
+                reset_index=reset_index,
+            )
             continue
 
         next_word = random_source.choice(next_words)
@@ -325,9 +463,11 @@ def generate_markov_text(
     frequencies: Counter[str] = Counter()
     for words in tokenized_messages:
         frequencies.update(word.strip(",.;:!?").lower() for word in words)
+    transitions = _transition_frequencies(tokenized_messages)
 
     random_source = rng or random
     keys = list(chain)
+    reset_index = _build_reset_index(keys)
     minimum_words = min_words or 1
     candidate_max_words = _candidate_word_limit(
         profile,
@@ -346,6 +486,7 @@ def generate_markov_text(
             reset_probability=profile.reset_probability,
             max_words=candidate_max_words,
             random_source=random_source,
+            reset_index=reset_index,
         )
         word_count = len(candidate.split()) if candidate else 0
         if (
@@ -355,7 +496,13 @@ def generate_markov_text(
             or _is_garbage_candidate(candidate, frequencies)
         ):
             continue
-        score = _score_candidate(candidate, frequencies, mode=selected_mode, target_words=target_words)
+        score = _score_candidate(
+            candidate,
+            frequencies,
+            mode=selected_mode,
+            target_words=target_words,
+            transitions=transitions,
+        )
         if score > best_score:
             best_candidate = candidate
             best_score = score
@@ -368,6 +515,7 @@ def generate_markov_text(
             reset_probability=profile.reset_probability,
             max_words=candidate_max_words,
             random_source=random_source,
+            reset_index=reset_index,
         )
 
     cleaned = polish_morphology(clean_generated_text(best_candidate))

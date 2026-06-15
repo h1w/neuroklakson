@@ -49,3 +49,11 @@ def test_clean_generated_text_removes_standalone_at_separators():
 
 def test_clean_generated_text_removes_prompt_noise_tokens():
     assert clean_generated_text("кофеин в глотку instructions") == "кофеин в глотку"
+
+
+def test_normalize_training_text_removes_wikipedia_citation_markers():
+    assert normalize_training_text("лекарства»[32] и дефолт[151].") == "лекарства» и дефолт."
+
+
+def test_clean_generated_text_removes_wikipedia_citation_markers():
+    assert clean_generated_text("Чубайс осудил решение[63].") == "Чубайс осудил решение."

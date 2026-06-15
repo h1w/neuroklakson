@@ -405,6 +405,43 @@ async def test_generate_bugurt_generates_separate_length_aware_lines(monkeypatch
     assert message.answers == ["line 1\n@\nline 2"]
 
 
+async def test_generate_bugurt_deduplicates_repeated_lines(monkeypatch):
+    from handlers import legacy
+
+    generated = iter(["одинаковая хуйня", "одинаковая хуйня", "новая залупа"])
+
+    async def fake_make_short_sentence(*args, **kwargs):
+        return next(generated)
+
+    async def fake_chat_messages_text(database, chat_id):
+        return "кабачок спорит с автобусом\nчайник ругает чубайса"
+
+    monkeypatch.setattr("handlers.legacy._chat_messages_text", fake_chat_messages_text)
+    monkeypatch.setattr("handlers.legacy.makeShortSentence", fake_make_short_sentence)
+    monkeypatch.setattr("handlers.legacy.random.randint", lambda minimum, maximum: 3)
+
+    class FakeMessage:
+        chat = type("Chat", (), {"id": 100})()
+
+        def __init__(self):
+            self.answers = []
+
+        async def answer(self, text):
+            self.answers.append(text)
+
+    class FakeSettings:
+        bredo_bugurt_message_min_lines = 2
+        bredo_bugurt_message_max_lines = 6
+        bredo_bugurt_message_min_words_per_line = 2
+        bredo_bugurt_message_max_words_per_line = 9
+
+    message = FakeMessage()
+
+    await legacy.generate_bugurt_handler(message, FakeDatabase(object()), FakeSettings())
+
+    assert message.answers == ["одинаковая хуйня\n@\nновая залупа"]
+
+
 def test_select_history_document_prefers_attached_document_over_caption_text():
     document = SimpleNamespace(file_id="attached-file")
     message = SimpleNamespace(

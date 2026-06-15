@@ -106,6 +106,7 @@ async def generate_bugurt_handler(message: Message, database: Database, settings
         settings.bredo_bugurt_message_max_lines,
     )
     lines: list[str] = []
+    seen_lines: set[str] = set()
     for _ in range(line_count):
         line = await makeShortSentence(
             messages_text,
@@ -119,7 +120,11 @@ async def generate_bugurt_handler(message: Message, database: Database, settings
             max_words=settings.bredo_bugurt_message_max_words_per_line,
         )
         if line is not None:
-            lines.append(await normalizeStringForDemotivator(line))
+            normalized_line = await normalizeStringForDemotivator(line)
+            dedupe_key = normalized_line.lower()
+            if dedupe_key not in seen_lines:
+                lines.append(normalized_line)
+                seen_lines.add(dedupe_key)
 
     if not lines:
         await message.answer(NEED_MORE_MATERIAL_MESSAGE)
