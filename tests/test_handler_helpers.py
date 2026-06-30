@@ -367,6 +367,14 @@ def test_help_text_documents_all_runtime_commands():
         assert command in common.HELP_TEXT
 
 
+def test_help_text_documents_current_behavior_details():
+    assert "/learn_history - только админы; импортировать экспорт истории" in common.HELP_TEXT
+    assert "/readtread2ch, /rt2ch <thread_or_board_url> - только админы" in common.HELP_TEXT
+    assert "сохранённого фото или импортированной картинки" in common.HELP_TEXT
+    assert "без режима используется режим чата" in common.HELP_TEXT
+    assert "команды, начинающиеся с /, не обучают корпус" in common.HELP_TEXT
+
+
 async def test_generate_bugurt_generates_separate_length_aware_lines(monkeypatch):
     calls = []
 
